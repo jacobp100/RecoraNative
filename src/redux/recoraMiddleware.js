@@ -197,9 +197,7 @@ const getDefaultBatchImpl = ({
         previousResults = pullAt(previousEntryIndex, previousResults);
       } else if (!didPerformExpensiveComputation) {
         // Expensive, don't do if we've exceeded the frame budget
-        console.log(input);
         result = instance.parse(input);
-        console.log('->', result);
         didPerformExpensiveComputation = true;
       } else {
         next(getCurrentState());
