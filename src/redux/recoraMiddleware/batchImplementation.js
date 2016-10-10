@@ -1,39 +1,13 @@
 // @flow
-import {
-  __, map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEqual, flow, matchesProperty,
-  filter, assign, omit, isEmpty, get, keyBy, mapValues, some, reduce,
-} from 'lodash/fp';
+import { map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEmpty } from 'lodash/fp';
 import Recora from 'recora';
-import type { State, SectionId, RecoraResult } from '../types';
-import { getAddedChangedRemovedSectionItems } from './util';
-import { setSectionResult } from './index';
+import type { SectionId } from '../../types';
+import createFiberRunner from './fiberRunner';
+import type { FiberRunner, BatchImplementation, Fiber, Result } from './types';
+import {
+  getAssignments, getNewChangedAssignments, getNextConstants, removeDuplicateAssignments,
+} from './util';
 
-type ResultListenerCallback = (
-  sectionId: SectionId,
-  entries: RecoraResult[],
-  total: RecoraResult
-) => void;
-type BatchImplementation = {
-  queueSection: (sectionId: SectionId, inputs: string[]) => void,
-  unqueueSection: (sectionId: SectionId) => void,
-  addResultListener: (callback: ResultListenerCallback) => void,
-};
-type Result = {
-  input: string,
-  result: ?RecoraResult,
-  removedAssignment: ?RecoraResult,
-};
-type ImmutableConstants = Object;
-type FiberOptions = {
-  requestIdleCallback: (fn: () => void) => any,
-  frameBudget: number,
-};
-type FiberFunction<T> = (state: T, next: (state: T) => void, initialState: T) => void;
-type Fiber<T> = {
-  getState: () => T,
-  cancel: () => void,
-};
-type FiberRunner<T> = (fn: FiberFunction<T>, initialState: T) => Fiber<T>;
 type CalculationState = {
   sectionId: SectionId,
   forceRecalculation: bool,
@@ -43,73 +17,8 @@ type CalculationState = {
   previousResults: Result[],
   results: Result[],
 };
+type ImmutableConstants = Object;
 
-const NODE_ASSIGNMENT = 'NODE_ASSIGNMENT';
-const createReassignmentResult = existingResult => ({
-  ...existingResult,
-  value: null,
-  pretty: `[reassignment of ${existingResult.value.identifier}]`,
-});
-
-const createFiberRunner = ({
-  requestIdleCallback = global.requestAnimationFrame,
-  frameBudget = 8,
-}: FiberOptions = {}): FiberRunner<any> => (fn, initialState) => {
-  let cancelled = false;
-  let state = initialState;
-  let lastContinuationTime;
-
-  const next = (nextState) => {
-    state = nextState;
-    if (Date.now() - lastContinuationTime < frameBudget) {
-      continueFiber();  // eslint-disable-line
-    } else {
-      requestIdleCallback(continueFiber); // eslint-disable-line
-    }
-  };
-
-  const continueFiber = () => {
-    if (cancelled) return;
-    lastContinuationTime = Date.now();
-    fn(state, next);
-  };
-
-  requestIdleCallback(continueFiber);
-
-  return {
-    getState: () => state,
-    cancel: () => { cancelled = true; },
-  };
-};
-
-
-const getAssignments = flow(
-  map(get(['result', 'value'])),
-  filter(matchesProperty('type', NODE_ASSIGNMENT))
-);
-const resultIsAssignment = matchesProperty(['result', 'value', 'type'], NODE_ASSIGNMENT);
-
-const removeDuplicateAssignments = reduce((outputResults, result) => {
-  let isDuplicateAssignment;
-  if (resultIsAssignment(result)) {
-    const identifier = result.result.value.identifier;
-
-    isDuplicateAssignment = flow(
-      getAssignments,
-      some({ identifier })
-    )(outputResults);
-  }
-
-  const outputResult = isDuplicateAssignment
-    ? {
-      input: result.input,
-      result: createReassignmentResult(result.result),
-      removedAssignment: result.result,
-    }
-    : result;
-
-  return concat(outputResults, outputResult);
-}, []);
 
 const getStateForRecalculation = (
   { sectionId, inputs }: CalculationState,
@@ -124,7 +33,7 @@ const getStateForRecalculation = (
   results: [],
 });
 
-const getDefaultBatchImpl = ({
+export default ({
   requestIdleCallback = global.requestAnimationFrame,
   frameBudget = 8,
 } = {}): BatchImplementation => {
@@ -133,9 +42,8 @@ const getDefaultBatchImpl = ({
     frameBudget,
   });
 
-  let resultListeners = [];
-
   // Global state (All objects mutable)
+  let resultListeners = [];
   const queuedInputs: { [key:SectionId]: string[] } = {};
   const previousResultsPerSection: { [key:SectionId]: Result[] } = {};
   const constantsPerSection: { [key:SectionId]: ImmutableConstants } = {};
@@ -209,22 +117,11 @@ const getDefaultBatchImpl = ({
 
     results = removeDuplicateAssignments(results);
 
-    const newChangedAssignments = flow(
-      getAssignments,
-      filter(({ identifier, value }) => !isEqual(constants[identifier], value))
-    )(results);
-
+    const newChangedAssignments = getNewChangedAssignments(constants, results);
     const removedAssignments = getAssignments(previousResults);
 
     if (!isEmpty(newChangedAssignments) || !isEmpty(removedAssignments)) {
-      const newConstants = flow(keyBy('identifier'), mapValues('value'))(newChangedAssignments);
-      const removedConstantNames = map('identifier', removedAssignments);
-
-      const nextConstants = flow(
-        omit(removedConstantNames),
-        assign(__, newConstants)
-      )(constants);
-
+      const nextConstants = getNextConstants(newChangedAssignments, removedAssignments, constants);
       next(getStateForRecalculation(getCurrentState(), nextConstants));
       return;
     }
@@ -260,33 +157,3 @@ const getDefaultBatchImpl = ({
     },
   };
 };
-
-
-const middleware = (
-  batchImplementation: BatchImplementation = getDefaultBatchImpl()
-): any => ({ getState, dispatch }) => {
-  batchImplementation.addResultListener((sectionId, entries, total) => {
-    dispatch(setSectionResult(sectionId, entries, total));
-  });
-
-  return next => (action) => {
-    const previousState: State = getState();
-    const returnValue = next(action);
-    const nextState: State = getState();
-
-    const { added, changed, removed } = getAddedChangedRemovedSectionItems(
-      nextState.sectionTextInputs,
-      previousState.sectionTextInputs
-    );
-
-    forEach(batchImplementation.unqueueSection, removed);
-
-    const sectionsToQueue = concat(added, changed);
-    forEach(sectionId => (
-      batchImplementation.queueSection(sectionId, nextState.sectionTextInputs[sectionId])
-    ), sectionsToQueue);
-
-    return returnValue;
-  };
-};
-export default middleware;
