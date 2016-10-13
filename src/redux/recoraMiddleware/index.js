@@ -3,7 +3,7 @@ import { concat, forEach } from 'lodash/fp';
 import type { State } from '../../types';
 import { getAddedChangedRemovedSectionItems } from '../util';
 import getDefaultBatchImpl from './batchImplementation';
-import { setSectionResult } from './index';
+import { setSectionResult } from '../index';
 
 
 const middleware = (

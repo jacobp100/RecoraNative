@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
-import TextView from './TextView';
+import EntryStackView from './EntryStackView';
 import TotalRow from './TotalRow';
 
 const Section = ({ sectionId, sectionTitle, sectionResults, sectionTotal }) => {
@@ -19,7 +19,7 @@ const Section = ({ sectionId, sectionTitle, sectionResults, sectionTotal }) => {
   return (
     <View>
       {titleElement}
-      <TextView sectionId={sectionId} />
+      <EntryStackView sectionId={sectionId} />
       {totalElement}
     </View>
   );

@@ -1,7 +1,7 @@
 // @flow
 import {
   reduce, concat, map, fromPairs, isEmpty, isEqual, curry, over, constant, partial, flow, assign,
-  pickBy, omitBy, keys, toPairs, mapValues, zip, get, pick, mapKeys, isNil, compact,
+  pickBy, omitBy, keys, toPairs, mapValues, get, pick, mapKeys, isNil, compact,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { getAddedChangedRemovedSectionItems, getPromiseStorage } from './util';

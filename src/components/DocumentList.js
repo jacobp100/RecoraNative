@@ -3,7 +3,7 @@ import React from 'react';
 import { View, ScrollView, TouchableOpacity, Text } from 'react-native';
 import { connect } from 'react-redux';
 import { map } from 'lodash/fp';
-import { addDocument } from '../redux';
+import { addDocument, deleteAllDocuments } from '../redux';
 
 
 // if (pagePreviews.length === 0) {
@@ -13,6 +13,7 @@ const DocumentList = ({
   documents,
   documentTitles,
   addDocument,
+  deleteAllDocuments,
   navigateDocument,
 }) => (
   <ScrollView style={{ flex: 1 }}>
@@ -30,6 +31,12 @@ const DocumentList = ({
         </TouchableOpacity>
       ), documents)}
     </View>
+    <View style={{ height: 32 }} />
+    <TouchableOpacity onPress={deleteAllDocuments}>
+      <View style={{ backgroundColor: 'red' }}>
+        <Text>Delete All Documents</Text>
+      </View>
+    </TouchableOpacity>
   </ScrollView>
 );
 
@@ -38,5 +45,5 @@ export default connect(
     documents,
     documentTitles,
   }),
-  { addDocument }
+  { addDocument, deleteAllDocuments }
 )(DocumentList);

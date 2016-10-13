@@ -22,10 +22,12 @@ const SET_DOCUMENT_TITLE = 'recora:SET_DOCUMENT_TITLE';
 const ADD_SECTION = 'recora:ADD_SECTION';
 const SET_SECTION_TITLE = 'recora:SET_SECTION_TITLE';
 const SET_TEXT_INPUTS = 'recora:SET_TEXT_INPUTS';
+const SET_TEXT_INPUT = 'recora:SET_TEXT_INPUT';
 const SET_SECTION_RESULT = 'recora:SET_SECTION_RESULT';
 const REORDER_SECTIONS = 'recora:REORDER_SECTIONS';
 const DELETE_DOCUMENT = 'recora:DELETE_DOCUMENT';
 const DELETE_SECTION = 'recora:DELETE_SECTION';
+const DELETE_ALL_DOCUMENTS = 'recora:DELETE_ALL_DOCUMENTS';
 
 const getExistingIds = flow(
   overEvery([
@@ -72,7 +74,8 @@ const doDeleteDocument = curry((documentId, state) => flow(
     state,
     get(['documentSections', documentId], state)
   ),
-  removeIdWithinKeys(documentKeys, documentId)
+  removeIdWithinKeys(documentKeys, documentId),
+  update('documents', without([documentId]))
 )(state));
 
 const doAddSection = curry((documentId, state) => {
@@ -105,6 +108,8 @@ export default (state: State = defaultState, action: Object): State => {
       return set(['sectionTitles', action.sectionId], action.title, state);
     case SET_TEXT_INPUTS:
       return set(['sectionTextInputs', action.sectionId], action.textInputs, state);
+    case SET_TEXT_INPUT:
+      return set(['sectionTextInputs', action.sectionId, action.index], action.textInput, state);
     case SET_SECTION_RESULT:
       return flow(
         set(['sectionResults', action.sectionId], action.entries),
@@ -126,6 +131,12 @@ export default (state: State = defaultState, action: Object): State => {
       return doDeleteDocument(action.documentId, state);
     case DELETE_SECTION:
       return doDeleteSection(action.sectionId, state);
+    case DELETE_ALL_DOCUMENTS:
+      return reduce(
+        (state, documentId) => doDeleteDocument(documentId, state),
+        state,
+        state.documents
+      );
     default:
       return state;
   }
@@ -142,6 +153,8 @@ export const setSectionTitle = (sectionId: SectionId, title: string) =>
   ({ type: SET_SECTION_TITLE, sectionId, title });
 export const setTextInputs = (sectionId: SectionId, textInputs: string[]) =>
   ({ type: SET_TEXT_INPUTS, sectionId, textInputs });
+export const setTextInput = (sectionId: SectionId, index: number, textInput: string) =>
+  ({ type: SET_TEXT_INPUT, sectionId, index, textInput });
 export const setSectionResult = (sectionId: SectionId, entries: RecoraResult[], total: RecoraResult) =>
   ({ type: SET_SECTION_RESULT, sectionId, entries, total });
 export const reorderSections = (documentId: DocumentId, order: number[]) =>
@@ -150,5 +163,7 @@ export const deleteDocument = (documentId: DocumentId) =>
   ({ type: DELETE_DOCUMENT, documentId });
 export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
+export const deleteAllDocuments = () =>
+  ({ type: DELETE_ALL_DOCUMENTS });
 export { loadDocuments, loadDocument } from './persistenceMiddleware';
 /* eslint-enable */

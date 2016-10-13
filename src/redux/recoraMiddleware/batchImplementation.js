@@ -104,6 +104,7 @@ export default ({
         result = previousValue.removedAssignment || previousValue.result;
         previousResults = pullAt(previousEntryIndex, previousResults);
       } else if (!didPerformExpensiveComputation) {
+        console.log(input);
         // Expensive, don't do if we've exceeded the frame budget
         result = instance.parse(input);
         didPerformExpensiveComputation = true;
