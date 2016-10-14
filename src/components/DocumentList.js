@@ -1,8 +1,6 @@
 // @flow
 import React from 'react';
-import {
-  View, ScrollView,
-} from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { connect } from 'react-redux';
 import { map } from 'lodash/fp';
 import QuickCalculation from './QuickCalculation';
@@ -17,8 +15,9 @@ const DocumentList = ({
   deleteAllDocuments,
   navigateDocument,
 }) => (
-  <ScrollView style={{ flex: 1 }} keyboardDismissMode="interactive">
+  <ScrollView style={{ flex: 1 }} keyboardDismissMode="interactive" showsVerticalScrollIndicator>
     <QuickCalculation />
+    <View style={{ height: 32 }} />
     <TableRow title="Add Document" onPress={addDocument} />
     <View>
       {map(documentId => (

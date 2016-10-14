@@ -2,47 +2,66 @@
 import React, { Component } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import { map, keys, get, getOr, last, concat } from 'lodash/fp';
+import LinearGradient from 'react-native-linear-gradient';
+import { getOr } from 'lodash/fp';
+import HorizontallyRepeatingImage from './HorizontallyRepeatingImage';
 import HighlightedEntryInput from './HighlightedEntryInput';
 import { setQuickCalculationInput } from '../redux';
+
+const borderImage = require('../../assets/border-image.png');
+
+const borderImageHeight = 34;
+const borderImageWidth = 512;
 
 
 const overflow = 400;
 
+const paddingStyles = {
+  paddingVertical: 6,
+  paddingHorizontal: 18,
+};
+
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgb(218, 28, 120)',
-    padding: 12,
-    paddingTop: overflow + 12,
+    paddingTop: overflow,
     marginTop: -overflow,
+  },
+  containerPadded: {
+    padding: 18,
+    paddingBottom: 24,
   },
   title: {
     fontSize: 36,
-    fontWeight: '100',
+    fontWeight: '200',
     textAlign: 'center',
     marginTop: 12,
     marginBottom: 36,
     color: 'white',
+    backgroundColor: 'transparent',
+  },
+  quickCalculationContainer: {
+    flexDirection: 'row',
+    borderRadius: 36,
+    overflow: 'hidden',
   },
   textInputContainer: {
-    flexDirection: 'row',
-    paddingVertical: 6,
-    paddingHorizontal: 24,
-    borderRadius: 36,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-  },
-  textInput: {
     flex: 1,
   },
+  textInput: {
+    ...paddingStyles,
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+  },
   resultContainer: {
-    maxWidth: 100,
+    ...paddingStyles,
+    maxWidth: 150,
+    backgroundColor: 'rgba(255, 255, 255, 0.90)',
   },
   result: {
     textAlign: 'right',
     color: 'black',
     fontWeight: '600',
     marginTop: 5,
-    marginLeft: 12,
   },
 });
 
@@ -68,40 +87,51 @@ class QuickCalculation extends Component {
     const { textInput, result } = this.props;
 
     return (
-      <View style={styles.container}>
-        <View>
-          <Text style={styles.title}>
-            Recora
-          </Text>
-        </View>
-        <View style={styles.textInputContainer}>
-          <TextInput
-            style={[styles.textInput, { height: textInputHeight }]}
-            placeholder="Type a quick calculation"
-            placeholderTextColor="rgba(218, 28, 120, 0.3)"
-            returnKeyType="done"
-            onChange={this.onChange}
-            onContentSizeChange={this.onContentSizeChange}
-            multiline
-            blurOnSubmit
-          >
-            <HighlightedEntryInput
-              text={textInput}
-              result={result}
-              hideBackground
-            />
-          </TextInput>
-          <View style={styles.resultContainer}>
-            <Text
-              style={styles.result}
-              ellipsizeMode="middle"
-              numberOfLines={1}
-            >
-              {getOr('?', 'pretty', result)}
+      <LinearGradient
+        colors={['rgb(218, 28, 120)', 'rgb(220, 28, 100)']}
+        start={[0, 0]} end={[1, 0]}
+        style={styles.container}
+      >
+        <View style={styles.containerPadded}>
+          <View>
+            <Text style={styles.title}>
+              Recora
             </Text>
           </View>
+          <View style={styles.quickCalculationContainer}>
+            <View style={styles.textInputContainer}>
+              <TextInput
+                style={[styles.textInput, { height: textInputHeight }]}
+                placeholder="Type a quick calculation"
+                placeholderTextColor="rgba(218, 28, 120, 0.3)"
+                returnKeyType="done"
+                onChange={this.onChange}
+                onContentSizeChange={this.onContentSizeChange}
+                multiline
+                blurOnSubmit
+              >
+                <HighlightedEntryInput
+                  text={textInput}
+                  result={result}
+                  hideBackground
+                />
+              </TextInput>
+            </View>
+            <View style={styles.resultContainer}>
+              <Text
+                style={styles.result}
+                ellipsizeMode="middle"
+                numberOfLines={1}
+              >
+                {getOr('?', 'pretty', result)}
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
+        <View style={{ height: borderImageHeight }}>
+          <HorizontallyRepeatingImage source={borderImage} width={borderImageWidth} />
+        </View>
+      </LinearGradient>
     );
   }
 }
