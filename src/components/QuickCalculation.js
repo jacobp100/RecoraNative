@@ -50,12 +50,12 @@ const styles = StyleSheet.create({
   textInput: {
     ...paddingStyles,
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
   },
   resultContainer: {
     ...paddingStyles,
     maxWidth: 150,
-    backgroundColor: 'rgba(255, 255, 255, 0.90)',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
   },
   result: {
     textAlign: 'right',

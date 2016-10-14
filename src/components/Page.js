@@ -15,7 +15,7 @@ class Page extends Component {
   }
 
   render() {
-    const { sections } = this.props;
+    const { sections, children } = this.props;
     const { isPortrait } = this.state;
 
     return (
@@ -27,6 +27,7 @@ class Page extends Component {
             portrait={isPortrait}
           />
         ), sections)}
+        {children}
       </ScrollView>
     );
   }

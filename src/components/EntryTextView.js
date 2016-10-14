@@ -24,6 +24,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderRightWidth: 1,
+    borderRightColor: '#888',
     paddingHorizontal,
     paddingVertical: 0,
   },

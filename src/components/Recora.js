@@ -14,15 +14,25 @@ class Recora extends Component {
     loadDocuments();
   }
 
+  onRightButtonPress = () => {
+    if (this.documentView && this.documentView.onEdit) this.documentView.onEdit();
+  }
+
   navigator = null;
+  documentView = null;
 
   navigateDocument = (documentId) => {
     if (!this.navigator) return;
     this.props.loadDocument(documentId);
     this.navigator.push({
-      component: DocumentView,
+      component: props => <DocumentView
+        ref={documentView => { this.documentView = documentView; }}
+        {...props}
+      />,
       passProps: { documentId },
       title: get(documentId, this.props.documentTitles),
+      rightButtonSystemIcon: 'edit',
+      onRightButtonPress: this.onRightButtonPress,
     });
   }
 
