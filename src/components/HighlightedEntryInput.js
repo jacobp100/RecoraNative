@@ -4,6 +4,12 @@ import { Text, StyleSheet } from 'react-native';
 import { reduce, last, concat, compact, get } from 'lodash/fp';
 
 
+const containerStyles = StyleSheet.create({
+  hideBackground: {
+    backgroundColor: 'transparent',
+  },
+});
+
 const tagStyles = StyleSheet.create({
   number: { color: '#8D43B2' },
   unit: { color: '#90B021' },
@@ -47,7 +53,7 @@ const SpanningElement = ({ children, type }) => (
   </Text>
 );
 
-const HighlightedResultInput = ({ result, text, ...props }) => {
+const HighlightedResultInput = ({ hideBackground, result, text, ...props }) => {
   // Recora strips out some noop tags from the start, middle and end,
   // but we need to actually show that text.
   let resultTokens = get('tokens', result) || [{ start: 0, end: text.length }];
@@ -78,7 +84,7 @@ const HighlightedResultInput = ({ result, text, ...props }) => {
   }, resultTokens);
 
   return (
-    <Text {...props}>
+    <Text style={hideBackground ? containerStyles.hideBackground : null} {...props}>
       {spanningElements}
     </Text>
   );

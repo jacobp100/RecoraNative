@@ -14,6 +14,8 @@ const defaultState: State = {
   sectionTextInputs: {},
   sectionResults: {},
   sectionTotals: {},
+  quickCalculationInput: '',
+  quickCalculationResult: { text: '' },
 };
 
 const MERGE_STATE = 'recora:MERGE_STATE';
@@ -28,6 +30,8 @@ const REORDER_SECTIONS = 'recora:REORDER_SECTIONS';
 const DELETE_DOCUMENT = 'recora:DELETE_DOCUMENT';
 const DELETE_SECTION = 'recora:DELETE_SECTION';
 const DELETE_ALL_DOCUMENTS = 'recora:DELETE_ALL_DOCUMENTS';
+const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
+const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
 
 const getExistingIds = flow(
   overEvery([
@@ -137,6 +141,10 @@ export default (state: State = defaultState, action: Object): State => {
         state,
         state.documents
       );
+    case SET_QUICK_CALCULATION_INPUT:
+      return set('quickCalculationInput', action.quickCalculationInput, state);
+    case SET_QUICK_CALCULATION_RESULT:
+      return set('quickCalculationResult', action.quickCalculationResult, state);
     default:
       return state;
   }
@@ -165,5 +173,9 @@ export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
 export const deleteAllDocuments = () =>
   ({ type: DELETE_ALL_DOCUMENTS });
+export const setQuickCalculationInput = (quickCalculationInput: string) =>
+  ({ type: SET_QUICK_CALCULATION_INPUT, quickCalculationInput });
+export const setQuickCalculationResult = (quickCalculationResult: RecoraResult) =>
+  ({ type: SET_QUICK_CALCULATION_RESULT, quickCalculationResult });
 export { loadDocuments, loadDocument } from './persistenceMiddleware';
 /* eslint-enable */

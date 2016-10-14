@@ -4,9 +4,10 @@ import { View, Text } from 'react-native';
 import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
 import EntryStackView from './EntryStackView';
+import EntryTextView from './EntryTextView';
 import TotalRow from './TotalRow';
 
-const Section = ({ sectionId, sectionTitle, sectionResults, sectionTotal }) => {
+const Section = ({ portrait, sectionId, sectionTitle, sectionResults, sectionTotal }) => {
   const ready = Boolean(sectionResults);
   const totalElement = sectionTotal && <TotalRow ready={ready} total={sectionTotal} />;
 
@@ -16,10 +17,12 @@ const Section = ({ sectionId, sectionTitle, sectionResults, sectionTotal }) => {
     </View>
   );
 
+  const EntryComponent = portrait ? EntryStackView : EntryTextView;
+
   return (
     <View>
       {titleElement}
-      <EntryStackView sectionId={sectionId} />
+      <EntryComponent sectionId={sectionId} />
       {totalElement}
     </View>
   );

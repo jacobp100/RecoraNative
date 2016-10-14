@@ -11,6 +11,19 @@ const styles = StyleSheet.create({
   entryContainer: {
     paddingHorizontal: 12,
     paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8f8f8',
+  },
+  entryContainerLast: {
+    borderBottomWidth: 0,
+  },
+  result: {
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  totalTitle: {
+    fontWeight: '400',
+    fontSize: 12,
   },
 });
 
@@ -56,7 +69,6 @@ class EntryInput extends Component {
     return (
       <View style={styles.entryContainer}>
         <TextInput
-          ref={textInput => { this.textInput = textInput; }}
           style={{ width: 300, height }}
           placeholder="Type to begin calculation…"
           returnKeyType="done"
@@ -70,7 +82,7 @@ class EntryInput extends Component {
           />
         </TextInput>
         <View>
-          <Text>
+          <Text style={styles.result}>
             {get('pretty', result)}
           </Text>
         </View>
@@ -103,6 +115,11 @@ const EntryStackView = ({ textInputs, results, setTextInput }) => {
   return (
     <View>
       {entryInputs}
+      <View style={[styles.entryContainer, styles.entryContainerLast]}>
+        <Text style={styles.result}>
+          <Text style={styles.totalTitle}>TOTAL</Text>&ensp;100
+        </Text>
+      </View>
     </View>
   );
 };

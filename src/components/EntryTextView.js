@@ -2,67 +2,134 @@
 import React, { Component } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import { map, flatMap, keys, get, getOr, set, values, sum } from 'lodash/fp';
+import { map, flatMap, keys, get, getOr, clamp, dropRight } from 'lodash/fp';
 import HighlightedEntryInput from './HighlightedEntryInput';
 import { setTextInputs } from '../redux';
 
 
+const paddingVertical = 6;
+const paddingHorizontal = 12;
+const magicNumber1 = 5; // I think this is the text line height - font size
+const magicNumber2 = 5;
+
+const totalBaseProps = {
+  lineHeight: 22,
+  marginTop: 8,
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    paddingVertical,
+  },
+  textInput: {
+    borderRightWidth: 1,
+    paddingHorizontal,
+    paddingVertical: 0,
+  },
+  results: {
+    paddingHorizontal,
+  },
+  resultsContainer: {
+    marginBottom: magicNumber2,
+  },
+  resultContainer: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  resultHeightPlaceholder: {
+    opacity: 0,
+  },
+  resultValue: {
+    position: 'absolute',
+    top: magicNumber1,
+    left: 0,
+  },
+  totalTitle: {
+    ...totalBaseProps,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  totalText: {
+    ...totalBaseProps,
+  },
+});
+
 class TextView extends Component {
   state = {
-    textHeights: {},
-    selection: { start: 0, end: 0 },
-  }
-
-  componentWillReceiveProps(prevProps) {
-    console.log(prevProps);
-    if (prevProps.textInputs !== this.props.textInputs) {
-      const { start, end } = this.state.selection;
-      console.log(start, end);
-      this.setState({ start: Math.max(0, start - 2), end: Math.max(0, end - 2) });
-    }
+    textInputWidth: 0,
+    textInputHeight: 0,
+    width: 0,
   }
 
   setSelection = (e) => {
     this.setState({ selection: e.nativeEvent.selection });
   }
 
-  setTextHeight = (e, index) => {
-    const height = e.nativeEvent.height;
-    if (this.state.textHeights[index] !== height) {
-      this.setState(set(['textHeights', index], height));
-    }
+  setWidthTextInputWidth = (e) => {
+    const { width } = e.nativeEvent.layout;
+    const textInputWidth = clamp(100, 400, width * 0.66) - (2 * paddingHorizontal);
+    this.setState({ width, textInputWidth });
+  }
+
+  setHeight = (e) => {
+    const { height: textInputHeight } = e.nativeEvent.contentSize;
+    this.setState({ textInputHeight });
   }
 
   render() {
-    const { textHeights, selection } = this.state;
+    const { textInputWidth, textInputHeight } = this.state;
     const { textInputs, results, setTextInputs } = this.props;
     const resultsWithText = results || map(text => ({ text }), textInputs);
 
-    const entryInputs = flatMap(index => [
+    const indices = keys(textInputs);
+
+    let entryInputElements = flatMap(index => [
       <HighlightedEntryInput
         key={index}
         text={textInputs[index]}
         result={resultsWithText[index]}
-        onLayout={e => this.onLayout(e, index)}
-        insertNewLine
       />,
       '\n',
-    ], keys(textInputs));
+    ], indices);
+    entryInputElements = dropRight(1, entryInputElements);
 
-    const height = sum(values(textHeights));
+    const resultElements = map(index => (
+      <View key={index} style={styles.resultContainer}>
+        <View style={[styles.resultHeightPlaceholder, { width: textInputWidth }]}>
+          <Text>textInputs[index]</Text>
+        </View>
+        <View style={styles.resultValue}>
+          <Text>{getOr('', [index, 'pretty'], results)}</Text>
+        </View>
+      </View>
+    ), indices);
 
     return (
-      <View>
-        <TextInput
-          style={{ width: 300, height: 300 }}
-          placeholder="Type to begin calculation…"
-          selection={selection}
-          onChangeText={setTextInputs}
-          onSelectionChange={this.setSelection}
-          multiline
-        >
-          {entryInputs}
-        </TextInput>
+      <View style={[styles.container]} onLayout={this.setWidthTextInputWidth}>
+        <View style={[styles.textInput, { width: textInputWidth }]}>
+          <TextInput
+            style={{ width: textInputWidth, height: textInputHeight }}
+            placeholder="Type to begin calculation…"
+            onChangeText={setTextInputs}
+            onContentSizeChange={this.setHeight}
+            multiline
+          >
+            {entryInputElements}
+          </TextInput>
+          <Text style={styles.totalTitle}>
+            TOTAL
+          </Text>
+        </View>
+        <View style={styles.results}>
+          <View style={styles.resultsContainer}>
+            {resultElements}
+          </View>
+          <Text style={styles.totalText}>
+            100
+          </Text>
+        </View>
       </View>
     );
   }
@@ -74,6 +141,6 @@ export default connect(
     results: get(sectionId, sectionResults),
   }),
   (dispatch, { sectionId }) => ({
-    setTextInputs: text => console.log(text)||dispatch(setTextInputs(sectionId, text.split('\n'))),
+    setTextInputs: text => dispatch(setTextInputs(sectionId, text.split('\n'))),
   })
 )(TextView);
