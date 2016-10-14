@@ -31,7 +31,6 @@ class EntryInput extends Component {
   }
 
   textInput = null;
-  forceSelection = null;
 
   render() {
     let { textInput, result } = this.props; // eslint-disable-line
