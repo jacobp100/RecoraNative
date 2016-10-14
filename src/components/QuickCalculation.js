@@ -27,8 +27,8 @@ const styles = StyleSheet.create({
     marginTop: -overflow,
   },
   containerPadded: {
-    padding: 18,
-    paddingBottom: 24,
+    padding: 24,
+    paddingBottom: 36,
   },
   title: {
     fontSize: 36,
