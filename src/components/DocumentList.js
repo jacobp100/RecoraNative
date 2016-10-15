@@ -1,11 +1,10 @@
 // @flow
-import React from 'react';
+import React, { Component } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import { map } from 'lodash/fp';
 import QuickCalculation from './QuickCalculation';
-import TableRow from './TableRow';
-import { addDocument, deleteAllDocuments } from '../redux';
+import SortableTable from './SortableTable';
+import { addDocument } from '../redux';
 
 
 const styles = StyleSheet.create({
@@ -29,41 +28,49 @@ const styles = StyleSheet.create({
   },
 });
 
-const DocumentList = ({
-  documents,
-  documentTitles,
-  addDocument,
-  deleteAllDocuments,
-  navigateDocument,
-}) => (
-  <ScrollView style={{ flex: 1 }} keyboardDismissMode="interactive" showsVerticalScrollIndicator>
-    <QuickCalculation />
-    <View style={styles.center}>
-      <TouchableOpacity onPress={addDocument}>
-        <View style={styles.addDocumentContainer}>
-          <Text style={styles.addDocumentText}>NEW DOCUMENT</Text>
+class DocumentList extends Component {
+  state = {
+    draggingTableItems: false,
+  }
+
+  startDraggingTableItems = () => this.setState({ draggingTableItems: true })
+  endDraggingTableItems = () => this.setState({ draggingTableItems: false })
+
+  render() {
+    const { documents, documentTitles, addDocument, navigateDocument } = this.props;
+    const { draggingTableItems } = this.state;
+
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        keyboardDismissMode="interactive"
+        scrollEnabled={!draggingTableItems}
+        showsVerticalScrollIndicator
+      >
+        <QuickCalculation />
+        <View style={styles.center}>
+          <TouchableOpacity onPress={addDocument}>
+            <View style={styles.addDocumentContainer}>
+              <Text style={styles.addDocumentText}>NEW DOCUMENT</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
-    </View>
-    <View>
-      {map(documentId => (
-        <TableRow
-          key={documentId}
-          title={documentTitles[documentId]}
-          onPress={() => navigateDocument(documentId)}
+        <SortableTable
+          rows={documents}
+          rowTitles={documentTitles}
+          onRowPress={navigateDocument}
+          onDragStart={this.startDraggingTableItems}
+          onDragEnd={this.endDraggingTableItems}
         />
-      ), documents)}
-    </View>
-    <View style={{ marginTop: 36 }}>
-      <TableRow title="Delete All Documents" onPress={deleteAllDocuments} />
-    </View>
-  </ScrollView>
-);
+      </ScrollView>
+    );
+  }
+}
 
 export default connect(
   ({ documents, documentTitles }) => ({
     documents,
     documentTitles,
   }),
-  { addDocument, deleteAllDocuments }
+  { addDocument }
 )(DocumentList);
