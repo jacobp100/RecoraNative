@@ -11,11 +11,11 @@ import quickCalculationMiddleware from '../redux/quickCalculationMiddleware';
 
 
 const middlewares = applyMiddleware(
-  ({ getState }) => next => (action) => {
-    const returnValue = next(action);
-    console.log(getState());
-    return returnValue;
-  },
+  // ({ getState }) => next => (action) => {
+  //   const returnValue = next(action);
+  //   console.log(getState());
+  //   return returnValue;
+  // },
   persistenceMiddleware(AsyncStorage),
   recoraMiddleware(),
   quickCalculationMiddleware()

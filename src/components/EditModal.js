@@ -42,9 +42,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 10,
     fontWeight: '900',
+    marginBottom: 18,
   },
   textInput: {
-    height: 40,
+    height: 22,
+    marginBottom: 22,
   },
 });
 
@@ -85,6 +87,7 @@ class EditModal extends Component {
                 rowTitles={getSectionTitlesWithDefaults(sections, sectionTitles)}
                 onDragStart={this.startDraggingTableItems}
                 onDragEnd={this.endDraggingTableItems}
+                isEditing
               />
             </View>
           </View>

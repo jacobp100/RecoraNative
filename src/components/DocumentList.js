@@ -43,9 +43,13 @@ class DocumentList extends Component {
   startDraggingTableItems = () => this.setState({ draggingTableItems: true })
   endDraggingTableItems = () => this.setState({ draggingTableItems: false })
   toggleEditing = () => this.setState({ editingTableItems: !this.state.editingTableItems })
+  navigateDocument = (documentId) => {
+    this.setState({ editingTableItems: false, draggingTableItems: false });
+    this.props.navigateDocument(documentId);
+  }
 
   render() {
-    const { documents, documentTitles, addDocument, navigateDocument, deleteDocument } = this.props;
+    const { documents, documentTitles, addDocument, deleteDocument } = this.props;
     const { draggingTableItems, editingTableItems } = this.state;
 
     return (
@@ -66,7 +70,7 @@ class DocumentList extends Component {
           <View style={styles.flex}>
             <TouchableOpacity onPress={this.toggleEditing}>
               <View style={styles.button}>
-                <Text style={styles.buttonText}>EDIT</Text>
+                <Text style={styles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -75,7 +79,7 @@ class DocumentList extends Component {
           rows={documents}
           rowTitles={documentTitles}
           isEditing={editingTableItems}
-          onRowPress={navigateDocument}
+          onRowPress={this.navigateDocument}
           onDeletePress={deleteDocument}
           onDragStart={this.startDraggingTableItems}
           onDragEnd={this.endDraggingTableItems}

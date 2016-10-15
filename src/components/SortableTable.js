@@ -1,111 +1,18 @@
 // @flow
 import React, { Component } from 'react';
-import {
-  View, Text, TouchableOpacity, PanResponder, Animated, StyleSheet,
-} from 'react-native';
+import { View, PanResponder, Animated } from 'react-native';
 import {
   map, memoize, fromPairs, zip, range, isEqual, forEach, keys, clamp, stubTrue,
 } from 'lodash/fp';
-
-const rowHeight = 44;
-
-export const styles = StyleSheet.create({
-  rowContainer: {
-    position: 'absolute',
-    zIndex: 1,
-  },
-  rowContainerActive: {
-    zIndex: 2,
-    shadowColor: 'black',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  row: {
-    backgroundColor: 'white',
-    flexDirection: 'row',
-    height: rowHeight + 1,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-  },
-  rowTitle: {
-    alignSelf: 'center',
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  rowTitleEditing: {
-    paddingHorizontal: 0,
-  },
-  rowDeleteButton: {
-    backgroundColor: '#FF3B30',
-    width: 22,
-    height: 22,
-    marginVertical: 11,
-    marginHorizontal: 18,
-    borderRadius: 11,
-  },
-  rowDeleteButtonText: {
-    backgroundColor: 'transparent',
-    color: 'white',
-    textAlign: 'center',
-    marginTop: 1,
-  },
-
-  dragHandle: {
-    height: rowHeight - 1, // Separator
-    width: rowHeight - 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dragHandleRow: {
-    width: 22,
-    height: 1,
-    marginVertical: 1,
-    backgroundColor: '#CECED2',
-  },
-});
-
-const SortableTableRow = ({
-  top,
-  width,
-  title,
-  onRowPress,
-  onDeletePress,
-  dragHandler,
-  isEditing,
-  isDragging,
-}) => (
-  <Animated.View
-    style={[styles.rowContainer, isDragging && styles.rowContainerActive, { width, top }]}
-  >
-    <View style={styles.row}>
-      {isEditing && <TouchableOpacity onPress={onDeletePress}>
-        <View style={styles.rowDeleteButton}>
-          <Text style={styles.rowDeleteButtonText}>&minus;</Text>
-        </View>
-      </TouchableOpacity>}
-      <View style={[styles.rowTitle, isEditing && styles.rowTitleEditing]}>
-        <TouchableOpacity onPress={onRowPress}>
-          <View style={styles.rowContentContainer}>
-            <Text style={styles.text}>{title}</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-      {isEditing && <View {...dragHandler} style={styles.dragHandle}>
-        <View style={styles.dragHandleRow} />
-        <View style={styles.dragHandleRow} />
-        <View style={styles.dragHandleRow} />
-      </View>}
-    </View>
-  </Animated.View>
-);
+import SortableTableRow, { rowHeight } from './SortableTableRow';
 
 export default class SortableTable extends Component {
   constructor(props) {
     super();
-    this.state = this.initialStateForProps(props);
+    this.state = {
+      ...this.initialStateForProps(props),
+      width: 0,
+    };
   }
 
   componentWillReceiveProps(nextProps) {
@@ -161,11 +68,10 @@ export default class SortableTable extends Component {
 
   initialStateForProps = props => ({
     draggingId: null,
-    rowTops: this.getInitialRowTops(props),
     draggingOrder: this.defaultDraggingOrder(props),
-    width: 0,
+    rowTops: this.getInitialRowTops(props),
     height: (rowHeight * props.rows.length) + 1,
-  });
+  })
 
   responderEnd = () => {
     if (this.props.onDragEnd) this.props.onDragEnd();
@@ -195,7 +101,7 @@ export default class SortableTable extends Component {
       newDraggingOrder.splice(newDraggingIndex, newDraggingIndex, rowIndex);
       this.setState({ draggingOrder: newDraggingOrder });
     }
-  };
+  }
 
   createGestureRecognizerFor = memoize(id => PanResponder.create({
     onStartShouldSetPanResponder: stubTrue,
@@ -209,11 +115,11 @@ export default class SortableTable extends Component {
       if (this.props.onDragStart) this.props.onDragStart();
       this.setState({ draggingId: id });
     },
-  }));
-  createOnRowPressFor = memoize(id => {
+  }))
+  createOnRowPressFor = memoize(id => () => {
     if (this.props.onRowPress) this.props.onRowPress(id);
   })
-  createOnDeletePressFor = memoize(id => {
+  createOnDeletePressFor = memoize(id => () => {
     if (this.props.onDeletePress) this.props.onDeletePress(id);
   })
 
