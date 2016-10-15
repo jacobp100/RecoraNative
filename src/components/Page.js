@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 import { ScrollView } from 'react-native';
 import { connect } from 'react-redux';
-import { map, get } from 'lodash/fp';
+import { map, getOr } from 'lodash/fp';
 import Section from './Section';
 
 class Page extends Component {
@@ -17,6 +17,7 @@ class Page extends Component {
   render() {
     const { sections, children } = this.props;
     const { isPortrait } = this.state;
+    const showSectionTitle = sections.length > 1;
 
     return (
       <ScrollView onLayout={this.onLayout} keyboardDismissMode="interactive">
@@ -25,6 +26,7 @@ class Page extends Component {
             key={sectionId}
             sectionId={sectionId}
             portrait={isPortrait}
+            showSectionTitle={showSectionTitle}
           />
         ), sections)}
         {children}
@@ -36,6 +38,6 @@ class Page extends Component {
 export default connect(
   ({ documentTitles, documentSections }, { documentId }) => ({
     // documentTitle: get(documentId, documentTitles),
-    sections: get(documentId, documentSections),
+    sections: getOr([], documentId, documentSections),
   })
 )(Page);

@@ -1,8 +1,6 @@
 // @flow
 import React from 'react';
-import {
-  View, Text, TouchableOpacity, Animated, StyleSheet,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 
 export const rowHeight = 44;
 
@@ -61,17 +59,26 @@ export const styles = StyleSheet.create({
     marginVertical: 1,
     backgroundColor: '#CECED2',
   },
+  rowText: {
+    lineHeight: 22,
+    fontSize: 14,
+  },
+  rowTextInput: {
+    height: 22,
+    fontSize: 14,
+  },
 });
 
 export default ({
   top,
   width,
   title,
-  onRowPress,
-  onDeletePress,
   dragHandler,
   isEditing,
   isDragging,
+  onRowPress,
+  onDeletePress,
+  onChangeText,
 }) => (
   <Animated.View
     style={[styles.rowContainer, isDragging && styles.rowContainerActive, { width, top }]}
@@ -83,11 +90,15 @@ export default ({
         </View>
       </TouchableOpacity>}
       <View style={[styles.rowTitle, isEditing && styles.rowTitleEditing]}>
-        <TouchableOpacity onPress={onRowPress}>
-          <View style={styles.rowContentContainer}>
-            <Text style={styles.text}>{title}</Text>
-          </View>
-        </TouchableOpacity>
+        {isEditing ? (
+          <TextInput style={styles.rowTextInput} value={title} onChangeText={onChangeText} />
+        ) : (
+          <TouchableOpacity onPress={onRowPress}>
+            <View style={styles.rowContentContainer}>
+              <Text style={styles.rowText}>{title}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
       {isEditing && <View {...dragHandler} style={styles.dragHandle}>
         <View style={styles.dragHandleRow} />

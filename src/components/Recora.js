@@ -18,23 +18,32 @@ class Recora extends Component {
     if (this.documentView && this.documentView.onEdit) this.documentView.onEdit();
   }
 
-  navigator = null;
-  documentView = null;
+  getRouteFor = (documentId) => ({
+    component: props => <DocumentView
+      ref={documentView => { this.documentView = documentView; }}
+      {...props}
+    />,
+    passProps: {
+      documentId,
+      refreshRoute: () => this.replaceDocument(documentId),
+    },
+    title: get(documentId, this.props.documentTitles),
+    rightButtonSystemIcon: 'edit',
+    onRightButtonPress: this.onRightButtonPress,
+  })
 
   navigateDocument = (documentId) => {
     if (!this.navigator) return;
     this.props.loadDocument(documentId);
-    this.navigator.push({
-      component: props => <DocumentView
-        ref={documentView => { this.documentView = documentView; }}
-        {...props}
-      />,
-      passProps: { documentId },
-      title: get(documentId, this.props.documentTitles),
-      rightButtonSystemIcon: 'edit',
-      onRightButtonPress: this.onRightButtonPress,
-    });
+    this.navigator.push(this.getRouteFor(documentId));
   }
+
+  replaceDocument = (documentId) => {
+    this.navigator.replace(this.getRouteFor(documentId));
+  }
+
+  navigator = null;
+  documentView = null;
 
   render() {
     return (
@@ -42,7 +51,9 @@ class Recora extends Component {
         ref={navigator => { this.navigator = navigator; }}
         initialRoute={{
           component: DocumentList,
-          passProps: { navigateDocument: this.navigateDocument },
+          passProps: {
+            navigateDocument: this.navigateDocument,
+          },
           navigationBarHidden: true,
           title: 'Recora',
         }}

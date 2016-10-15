@@ -16,6 +16,9 @@ export default class SortableTable extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
+    if (this.props.isEditing !== nextProps.isEditing) {
+      this.setState({ draggingId: null });
+    }
     if (this.props.rows !== nextProps.rows) {
       this.setState(this.initialStateForProps(nextProps));
     }
@@ -80,7 +83,7 @@ export default class SortableTable extends Component {
     this.resetRowTops();
     this.setState({
       draggingId: null,
-      draggingOrder: this.defaultDraggingOrder(),
+      draggingOrder: this.defaultDraggingOrder(), // FIXME: Should be prop update
     });
   }
 
@@ -122,6 +125,9 @@ export default class SortableTable extends Component {
   createOnDeletePressFor = memoize(id => () => {
     if (this.props.onDeletePress) this.props.onDeletePress(id);
   })
+  createOnChangeTextFor = memoize(id => (text) => {
+    if (this.props.onRowChangeText) this.props.onRowChangeText(id, text);
+  })
 
   render() {
     const { rows, rowTitles, isEditing } = this.props;
@@ -135,9 +141,10 @@ export default class SortableTable extends Component {
         title={rowTitles[id]}
         isEditing={isEditing}
         isDragging={draggingId === id}
+        dragHandler={this.createGestureRecognizerFor(id).panHandlers}
         onRowPress={this.createOnRowPressFor(id)}
         onDeletePress={this.createOnDeletePressFor(id)}
-        dragHandler={this.createGestureRecognizerFor(id).panHandlers}
+        onChangeText={this.createOnChangeTextFor(id)}
       />
     ), rows);
 

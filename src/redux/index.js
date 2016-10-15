@@ -29,7 +29,6 @@ const SET_SECTION_RESULT = 'recora:SET_SECTION_RESULT';
 const REORDER_SECTIONS = 'recora:REORDER_SECTIONS';
 const DELETE_DOCUMENT = 'recora:DELETE_DOCUMENT';
 const DELETE_SECTION = 'recora:DELETE_SECTION';
-const DELETE_ALL_DOCUMENTS = 'recora:DELETE_ALL_DOCUMENTS';
 const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
 const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
 
@@ -49,6 +48,10 @@ const newId = (identifier, state) => {
   return id;
 };
 
+
+const append = curry((value, array) => (
+  array ? concat(array, value) : [value]
+));
 
 const removeIdWithinKeys = curry((keysToUpdate, idToRemove, state) => reduce(
   (state, keyToUpdate) => unset([keyToUpdate, idToRemove], state),
@@ -84,11 +87,14 @@ const doDeleteDocument = curry((documentId, state) => flow(
 
 const doAddSection = curry((documentId, state) => {
   const sectionId = newId('section');
-  return update(
-    ['documentSections', documentId],
-    existingSections => (existingSections ? concat(existingSections, sectionId) : [sectionId]),
-    state
-  );
+  return flow(
+    update(['documentSections', documentId], append(sectionId)),
+    state => set(
+      ['sectionTitles', sectionId],
+      `Section ${state.documentSections[documentId].length}`,
+      state
+    ),
+  )(state);
 });
 
 
@@ -135,12 +141,6 @@ export default (state: State = defaultState, action: Object): State => {
       return doDeleteDocument(action.documentId, state);
     case DELETE_SECTION:
       return doDeleteSection(action.sectionId, state);
-    case DELETE_ALL_DOCUMENTS:
-      return reduce(
-        (state, documentId) => doDeleteDocument(documentId, state),
-        state,
-        state.documents
-      );
     case SET_QUICK_CALCULATION_INPUT:
       return set('quickCalculationInput', action.quickCalculationInput, state);
     case SET_QUICK_CALCULATION_RESULT:
@@ -155,6 +155,8 @@ export const mergeState = (state: Object) =>
   ({ type: MERGE_STATE, state });
 export const addDocument = () =>
   ({ type: ADD_DOCUMENT });
+export const setDocumentTitle = (documentId: DocumentId, title: string) =>
+  ({ type: SET_DOCUMENT_TITLE, documentId, title });
 export const addSection = (documentId: DocumentId) =>
   ({ type: ADD_SECTION, documentId });
 export const setSectionTitle = (sectionId: SectionId, title: string) =>
@@ -171,8 +173,6 @@ export const deleteDocument = (documentId: DocumentId) =>
   ({ type: DELETE_DOCUMENT, documentId });
 export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
-export const deleteAllDocuments = () =>
-  ({ type: DELETE_ALL_DOCUMENTS });
 export const setQuickCalculationInput = (quickCalculationInput: string) =>
   ({ type: SET_QUICK_CALCULATION_INPUT, quickCalculationInput });
 export const setQuickCalculationResult = (quickCalculationResult: RecoraResult) =>

@@ -2,8 +2,9 @@
 import React, { Component } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableHighlight, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import { getOr, keys, map, fromPairs } from 'lodash/fp';
+import { getOr } from 'lodash/fp';
 import SortableTable from './SortableTable';
+import { setDocumentTitle, addSection } from '../redux';
 
 const styles = StyleSheet.create({
   container: {
@@ -22,6 +23,9 @@ const styles = StyleSheet.create({
   },
   outsetSectionBody: {
     marginHorizontal: -24,
+  },
+  padBottomSectionBody: {
+    paddingBottom: 36,
   },
   sectionAction: {
     padding: 12,
@@ -50,41 +54,45 @@ const styles = StyleSheet.create({
   },
 });
 
-const getSectionTitlesWithDefaults = (sections, sectionTitles) => {
-  const sectionIndices = keys(sections);
-
-  const pairs = map(index => {
-    const sectionId = sections[index];
-    const title = getOr(`Section ${index + 1}`, sectionId, sectionTitles);
-    return [sectionId, title];
-  }, sectionIndices);
-
-  return fromPairs(pairs);
-};
-
 class EditModal extends Component {
   state = {
     draggingTableItems: false,
   }
 
+  setDocumentTitle = (text) => {
+    this.props.setDocumentTitle(text);
+    this.didEditDocumentTitle = true;
+  }
+
   startDraggingTableItems = () => this.setState({ draggingTableItems: true })
   endDraggingTableItems = () => this.setState({ draggingTableItems: false })
 
+  closeModal = () => {
+    if (this.props.closeModal) this.props.closeModal(this.didEditDocumentTitle);
+    this.didEditDocumentTitle = false;
+  }
+
+  didEditDocumentTitle = false;
+
   render() {
-    const { closeModal, sections, sectionTitles } = this.props;
+    const { closeModal, title, sections, sectionTitles, addSection } = this.props;
     const { draggingTableItems } = this.state;
 
     return (
       <ScrollView style={styles.container} scrollEnabled={!draggingTableItems}>
         <View style={styles.sectionContainer}>
-          <View style={styles.sectionBody}>
+          <View style={[styles.sectionBody, styles.padBottomSectionBody]}>
             <Text style={styles.title}>TITLE</Text>
-            <TextInput style={styles.textInput} value="a" />
+            <TextInput
+              style={styles.textInput}
+              value={title}
+              onChangeText={this.setDocumentTitle}
+            />
             <Text style={styles.title}>SECTIONS</Text>
             <View style={styles.outsetSectionBody}>
               <SortableTable
                 rows={sections}
-                rowTitles={getSectionTitlesWithDefaults(sections, sectionTitles)}
+                rowTitles={sectionTitles}
                 onDragStart={this.startDraggingTableItems}
                 onDragEnd={this.endDraggingTableItems}
                 isEditing
@@ -92,7 +100,13 @@ class EditModal extends Component {
             </View>
           </View>
           <View style={styles.separator} />
-          <TouchableHighlight onPress={closeModal}>
+          <TouchableHighlight onPress={addSection}>
+            <View style={styles.sectionAction}>
+              <Text style={styles.action}>Add Section</Text>
+            </View>
+          </TouchableHighlight>
+          <View style={styles.separator} />
+          <TouchableHighlight onPress={this.closeModal}>
             <View style={styles.sectionAction}>
               <Text style={styles.action}>Close</Text>
             </View>
@@ -114,7 +128,12 @@ class EditModal extends Component {
 
 export default connect(
   (state, { documentId }) => ({
+    title: getOr('', ['documentTitles', documentId], state),
     sections: getOr([], ['documentSections', documentId], state),
     sectionTitles: state.sectionTitles,
+  }),
+  (dispatch, { documentId }) => ({
+    setDocumentTitle: text => dispatch(setDocumentTitle(documentId, text)),
+    addSection: () => dispatch(addSection(documentId)),
   })
 )(EditModal);

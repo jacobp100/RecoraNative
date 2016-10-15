@@ -1,19 +1,35 @@
 // @flow
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
 import EntryStackView from './EntryStackView';
 import EntryTextView from './EntryTextView';
 import TotalRow from './TotalRow';
 
-const Section = ({ portrait, sectionId, sectionTitle, sectionResults, sectionTotal }) => {
+const styles = StyleSheet.create({
+  title: {
+    fontSize: 11,
+    fontWeight: '600',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+});
+
+const Section = ({
+  portrait,
+  showSectionTitle,
+  sectionId,
+  sectionTitle,
+  sectionResults,
+  sectionTotal,
+}) => {
   const ready = Boolean(sectionResults);
   const totalElement = sectionTotal && <TotalRow ready={ready} total={sectionTotal} />;
 
-  const titleElement = sectionTitle && (
+  const titleElement = showSectionTitle && (
     <View>
-      <Text>{sectionTitle}</Text>
+      <Text style={styles.title}>{sectionTitle}</Text>
     </View>
   );
 

@@ -11,7 +11,10 @@ export default class DocumentView extends Component {
     this.setState({ modalVisible: true });
   }
 
-  closeModal = () => { this.setState({ modalVisible: false }); }
+  closeModal = (forceRefresh) => {
+    this.setState({ modalVisible: false });
+    if (forceRefresh) this.props.refreshRoute();
+  }
 
   render() {
     const { documentId } = this.props;
