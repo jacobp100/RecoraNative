@@ -23,7 +23,7 @@ export default class DocumentView extends Component {
           visible={modalVisible}
           transparent
         >
-          <EditModal closeModal={this.closeModal} />
+          <EditModal documentId={documentId} closeModal={this.closeModal} />
         </Modal>
       </Page>
     );
