@@ -69,7 +69,7 @@ class EntryInput extends Component {
     return (
       <View style={styles.entryContainer}>
         <TextInput
-          style={{ width: 300, height }}
+          style={{ fontSize: 14, height }}
           placeholder="Type to begin calculation…"
           returnKeyType="done"
           onChange={this.onChange}

@@ -2,9 +2,15 @@
 import React, { Component } from 'react';
 import { View, PanResponder, Animated } from 'react-native';
 import {
-  map, memoize, fromPairs, zip, range, isEqual, forEach, keys, clamp, stubTrue,
+  map, memoize, fromPairs, zip, range, isEqual, forEach, keys, clamp, stubTrue, curry, pullAt, flow,
 } from 'lodash/fp';
 import SortableTableRow, { rowHeight } from './SortableTableRow';
+
+const insertAt = curry((index, value, array) => [].concat(
+  array.slice(0, index),
+  value,
+  array.slice(index)
+));
 
 export default class SortableTable extends Component {
   constructor(props) {
@@ -24,25 +30,17 @@ export default class SortableTable extends Component {
     }
   }
 
-  componentDidUpdate(prevProps, prevState) {
-    const { draggingOrder: currentDraggingOrder, draggingId } = this.state;
-    const { draggingOrder: previousDraggingOrder } = prevState;
-
-    const isDragging = draggingId !== null; // Handled by responderEnd
-    if (!isDragging) return;
-
-    const draggingOrderUnchanged = isEqual(currentDraggingOrder, previousDraggingOrder);
-    if (draggingOrderUnchanged) return;
+  componentDidUpdate() {
+    const { draggingOrder } = this.state;
 
     forEach(index => {
-      if (currentDraggingOrder[index] === previousDraggingOrder[index]) return;
-      const rowIndex = currentDraggingOrder[index];
+      const rowIndex = draggingOrder[index];
       const rowId = this.props.rows[rowIndex];
       if (rowId === this.state.draggingId) return;
       const rowTop = this.state.rowTops[rowId];
       const toValue = this.rowTopForIndex(index);
-      Animated.timing(rowTop, { toValue, duration: 300 }).start();
-    }, keys(currentDraggingOrder));
+      Animated.spring(rowTop, { toValue, velocity: 0, friction: 5 }).start();
+    }, keys(draggingOrder));
   }
 
   onLayout = (e) => {
@@ -80,11 +78,9 @@ export default class SortableTable extends Component {
     if (this.props.onDragEnd) this.props.onDragEnd();
     const { draggingId } = this.state;
     if (!draggingId) return;
-    this.resetRowTops();
-    this.setState({
-      draggingId: null,
-      draggingOrder: this.defaultDraggingOrder(), // FIXME: Should be prop update
-    });
+    // this.resetRowTops();
+    this.setState({ draggingId: null });
+    if (this.props.onOrderChange) this.props.onOrderChange(this.state.draggingOrder);
   }
 
   responderMove = (e, gestureState) => {
@@ -99,9 +95,10 @@ export default class SortableTable extends Component {
     const newDraggingIndex = Math.round(nextTop / rowHeight);
 
     if (currentDraggingIndex !== newDraggingIndex) {
-      const newDraggingOrder = range(0, this.props.rows.length);
-      newDraggingOrder.splice(rowIndex, rowIndex + 1);
-      newDraggingOrder.splice(newDraggingIndex, newDraggingIndex, rowIndex);
+      const newDraggingOrder = flow(
+        pullAt(rowIndex),
+        insertAt(newDraggingIndex, rowIndex)
+      )(range(0, this.props.rows.length));
       this.setState({ draggingOrder: newDraggingOrder });
     }
   }

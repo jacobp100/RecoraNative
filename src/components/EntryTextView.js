@@ -111,7 +111,7 @@ class TextView extends Component {
       <View style={[styles.container]} onLayout={this.setWidthTextInputWidth}>
         <View style={[styles.textInput, { width: textInputWidth }]}>
           <TextInput
-            style={{ width: textInputWidth, height: textInputHeight }}
+            style={{ fontSize: 14, width: textInputWidth, height: textInputHeight }}
             placeholder="Type to begin calculation…"
             onChangeText={setTextInputs}
             onContentSizeChange={this.setHeight}

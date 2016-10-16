@@ -39,7 +39,10 @@ class Recora extends Component {
   }
 
   replaceDocument = (documentId) => {
-    this.navigator.replace(this.getRouteFor(documentId));
+    // FIXME: This does not work.
+    const currentRoute = this.navigator.navigationContext.currentRoute;
+    currentRoute.title = get(documentId, this.props.documentTitles);
+    this.navigator.resetTo(currentRoute);
   }
 
   navigator = null;

@@ -1,7 +1,7 @@
 // @flow
 import {
   get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
-  overEvery, uniqueId, includes, merge, propertyOf, map, intersection,
+  over, uniqueId, includes, merge, propertyOf, map, intersection,
 } from 'lodash/fp';
 import type { State, SectionId, DocumentId, RecoraResult } from '../types';
 
@@ -21,6 +21,7 @@ const defaultState: State = {
 const MERGE_STATE = 'recora:MERGE_STATE';
 const ADD_DOCUMENT = 'recora:ADD_DOCUMENT';
 const SET_DOCUMENT_TITLE = 'recora:SET_DOCUMENT_TITLE';
+const REORDER_DOCUMENTS = 'recora:REORDER_DOCUMENTS';
 const ADD_SECTION = 'recora:ADD_SECTION';
 const SET_SECTION_TITLE = 'recora:SET_SECTION_TITLE';
 const SET_TEXT_INPUTS = 'recora:SET_TEXT_INPUTS';
@@ -33,7 +34,7 @@ const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
 const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
 
 const getExistingIds = flow(
-  overEvery([
+  over([
     get('documents'),
     flow(get('documentSections'), values, flatten),
   ]),
@@ -112,6 +113,18 @@ export default (state: State = defaultState, action: Object): State => {
     }
     case SET_DOCUMENT_TITLE:
       return set(['documentTitles', action.documentId], action.title, state);
+    case REORDER_DOCUMENTS: {
+      const { order } = action;
+      const documentIds = get('documents', state);
+      const orderedDocumentIds = map(propertyOf(documentIds), order);
+
+      const noDocumentsAddedRemoved =
+        intersection(orderedDocumentIds, documentIds).length === documentIds.length;
+
+      return noDocumentsAddedRemoved
+        ? set('documents', orderedDocumentIds, state)
+        : state;
+    }
     case ADD_SECTION:
       return doAddSection(action.documentId, state);
     case SET_SECTION_TITLE:
@@ -157,6 +170,8 @@ export const addDocument = () =>
   ({ type: ADD_DOCUMENT });
 export const setDocumentTitle = (documentId: DocumentId, title: string) =>
   ({ type: SET_DOCUMENT_TITLE, documentId, title });
+export const reorderDocuments = (order: number[]) =>
+  ({ type: REORDER_DOCUMENTS, order });
 export const addSection = (documentId: DocumentId) =>
   ({ type: ADD_SECTION, documentId });
 export const setSectionTitle = (sectionId: SectionId, title: string) =>

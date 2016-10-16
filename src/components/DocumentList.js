@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { connect } from 'react-redux';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
-import { addDocument, deleteDocument, setDocumentTitle } from '../redux';
+import { addDocument, deleteDocument, setDocumentTitle, reorderDocuments } from '../redux';
 
 
 const styles = StyleSheet.create({
@@ -49,7 +49,9 @@ class DocumentList extends Component {
   }
 
   render() {
-    const { documents, documentTitles, addDocument, deleteDocument, setDocumentTitle } = this.props;
+    const {
+      documents, documentTitles, addDocument, deleteDocument, setDocumentTitle, reorderDocuments,
+    } = this.props;
     const { draggingTableItems, editingTableItems } = this.state;
 
     return (
@@ -84,6 +86,7 @@ class DocumentList extends Component {
           onDragEnd={this.endDraggingTableItems}
           onDeletePress={deleteDocument}
           onRowChangeText={setDocumentTitle}
+          onOrderChange={reorderDocuments}
         />
       </ScrollView>
     );
@@ -95,5 +98,5 @@ export default connect(
     documents,
     documentTitles,
   }),
-  { addDocument, deleteDocument, setDocumentTitle }
+  { addDocument, deleteDocument, setDocumentTitle, reorderDocuments }
 )(DocumentList);
