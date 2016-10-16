@@ -1,15 +1,15 @@
 // @flow
 import React from 'react';
-import { AsyncStorage } from 'react-native';
+import { AsyncStorage, AppState } from 'react-native';
 import { createStore, applyMiddleware } from 'redux';
 import { Provider } from 'react-redux';
-import reducer, { setCustomUnits } from '../redux';
+import reducer from '../redux';
 import Recora from './Recora';
 import cacheInvalidationMiddleware from '../redux/cacheInvalidationMiddleware';
+import currencyUpdaterMiddleware from '../redux/currencyUpdaterMiddleware';
 import persistenceMiddleware from '../redux/persistenceMiddleware';
 import recoraMiddleware from '../redux/recoraMiddleware';
 import quickCalculationMiddleware from '../redux/quickCalculationMiddleware';
-import fetchCurrencies from '../fetchCurrencies';
 
 
 const middlewares = applyMiddleware(
@@ -19,6 +19,7 @@ const middlewares = applyMiddleware(
   //   return returnValue;
   // },
   cacheInvalidationMiddleware(),
+  currencyUpdaterMiddleware(AppState),
   persistenceMiddleware(AsyncStorage),
   recoraMiddleware(),
   quickCalculationMiddleware()
@@ -27,9 +28,6 @@ const store = createStore(
   reducer,
   middlewares,
 );
-
-fetchCurrencies()
-  .then(customUnits => store.dispatch(setCustomUnits(customUnits)));
 
 export default () => (
   <Provider store={store}>

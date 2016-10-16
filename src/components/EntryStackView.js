@@ -64,7 +64,7 @@ class EntryInput extends Component {
     // We use blurOnSubmit because it'll stop adding multiple lines
     // See RCTTextView.m:
     //
-    // TODO: the purpose of blurOnSubmit on RCTextField is to decide if the
+    // the purpose of blurOnSubmit on RCTextField is to decide if the
     // field should lose focus when return is pressed or not. We're cheating a
     // bit here by using it on RCTextView to decide if return character should
     // submit the form, or be entered into the field.

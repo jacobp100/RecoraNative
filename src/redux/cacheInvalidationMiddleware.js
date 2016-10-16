@@ -1,5 +1,5 @@
 // @flow
-import { getOr, without, flow, values, flatten, any } from 'lodash/fp';
+import { getOr, without, flow, values, flatten, any, isEqual } from 'lodash/fp';
 import type { State, DocumentId } from '../types';
 import { unloadSections } from './index';
 
@@ -27,7 +27,7 @@ export default () => ({ getState, dispatch }) => {
 
     if (action.type === SET_ACTIVE_DOCUMENT) {
       activeDocument = action.documentId;
-    } else if (any(key => nextState[key] !== previousState[key], cacheKeys)) {
+    } else if (any(key => !isEqual(nextState[key], previousState[key]), cacheKeys)) {
       dispatch(unloadSections(getInactiveSections(nextState)));
     }
 

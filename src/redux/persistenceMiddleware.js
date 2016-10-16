@@ -1,7 +1,7 @@
 // @flow
 import {
-  reduce, concat, map, fromPairs, isEmpty, isEqual, curry, over, constant, partial, flow, assign,
-  pickBy, omitBy, keys, toPairs, mapValues, get, pick, mapKeys, isNil, compact,
+  __, reduce, concat, map, fromPairs, isEmpty, isEqual, curry, over, constant, partial, flow,
+  assign, pickBy, omitBy, keys, toPairs, mapValues, get, pick, mapKeys, isNil, compact, every, has,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { getAddedChangedRemovedSectionItems, getPromiseStorage } from './util';
@@ -116,10 +116,11 @@ export default (storage: PromiseStorage = getPromiseStorage()): any => ({ getSta
   };
 
   const doLoadDocument = async (documentId, state) => {
-    // FIXME: Don't load if we've already loaded
     const sectionIds = get(['documentSections', documentId], state);
 
     if (!sectionIds) return;
+    // Don't load if we've already loaded
+    if (every(has(__, state.sectionTextInputs), sectionIds)) return;
 
     const sectionStorageKeys = map(getSectionStorageKey(sectionTextInputStoragePrefix), sectionIds);
     const sectionPreviewStorageKeys = map(getSectionStorageKey(sectionPreviewPrefix), sectionIds);

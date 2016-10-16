@@ -1,5 +1,5 @@
 // @flow
-import { concat, forEach } from 'lodash/fp';
+import { concat, forEach, isEqual } from 'lodash/fp';
 import type { State } from '../../types';
 import { getAddedChangedRemovedSectionItems } from '../util';
 import getDefaultBatchImpl from './batchImplementation';
@@ -18,7 +18,7 @@ const middleware = (
     const returnValue = next(action);
     const nextState: State = getState();
 
-    if (nextState.customUnits !== previousState.customUnits) {
+    if (!isEqual(nextState.customUnits, previousState.customUnits)) {
       batchImplementation.setCustomUnits(nextState.customUnits);
     }
 
