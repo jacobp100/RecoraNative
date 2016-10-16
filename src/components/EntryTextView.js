@@ -49,11 +49,12 @@ const styles = StyleSheet.create({
   totalTitle: {
     ...totalBaseProps,
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '400',
     textAlign: 'right',
   },
   totalText: {
     ...totalBaseProps,
+    fontWeight: '600',
   },
 });
 
@@ -81,7 +82,7 @@ class TextView extends Component {
 
   render() {
     const { textInputWidth, textInputHeight } = this.state;
-    const { textInputs, results, setTextInputs } = this.props;
+    const { textInputs, results, total, setTextInputs } = this.props;
     const resultsWithText = results || map(text => ({ text }), textInputs);
 
     const indices = keys(textInputs);
@@ -128,7 +129,7 @@ class TextView extends Component {
             {resultElements}
           </View>
           <Text style={styles.totalText}>
-            100
+            {getOr('-', 'pretty', total)}
           </Text>
         </View>
       </View>
@@ -137,9 +138,10 @@ class TextView extends Component {
 }
 
 export default connect(
-  ({ sectionTextInputs, sectionResults }, { sectionId }) => ({
+  ({ sectionTextInputs, sectionResults, sectionTotals }, { sectionId }) => ({
     textInputs: getOr([], sectionId, sectionTextInputs),
     results: get(sectionId, sectionResults),
+    total: get(sectionId, sectionTotals),
   }),
   (dispatch, { sectionId }) => ({
     setTextInputs: text => dispatch(setTextInputs(sectionId, text.split('\n'))),

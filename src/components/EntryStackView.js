@@ -7,6 +7,8 @@ import HighlightedEntryInput from './HighlightedEntryInput';
 import { setTextInput } from '../redux';
 
 
+const hideResultPadding = 6;
+
 const styles = StyleSheet.create({
   entryContainer: {
     paddingHorizontal: 12,
@@ -17,9 +19,17 @@ const styles = StyleSheet.create({
   entryContainerLast: {
     borderBottomWidth: 0,
   },
+  textInput: {
+    fontSize: 14,
+    // marginBottom to make EntryInput look normal with hideResult
+    marginBottom: hideResultPadding,
+  },
   result: {
     textAlign: 'right',
     fontWeight: '600',
+    lineHeight: 22,
+    height: 22,
+    marginTop: -hideResultPadding,
   },
   totalTitle: {
     fontWeight: '400',
@@ -46,7 +56,7 @@ class EntryInput extends Component {
   textInput = null;
 
   render() {
-    let { textInput, result } = this.props; // eslint-disable-line
+    let { textInput, result, hideResult } = this.props; // eslint-disable-line
     const { height } = this.state;
 
     textInput = textInput.replace(/\n/g, '');
@@ -69,7 +79,7 @@ class EntryInput extends Component {
     return (
       <View style={styles.entryContainer}>
         <TextInput
-          style={{ fontSize: 14, height }}
+          style={[styles.textInput, { height }]}
           placeholder="Type to begin calculation…"
           returnKeyType="done"
           onChange={this.onChange}
@@ -81,43 +91,50 @@ class EntryInput extends Component {
             result={result}
           />
         </TextInput>
-        <View>
+        {!hideResult && <View>
           <Text style={styles.result}>
             {get('pretty', result)}
           </Text>
-        </View>
+        </View>}
       </View>
     );
   }
 }
 
 
-const EntryStackView = ({ textInputs, results, setTextInput }) => {
+const EntryStackView = ({ textInputs, results, total, setTextInput }) => {
   const hideNewEntry = last(textInputs) === '';
   const resultsWithText = results || map(text => ({ text }), textInputs);
 
-  const textInputsWithNewEntry = hideNewEntry
-    ? textInputs
-    : concat(textInputs, '');
-  const resultsWithNewEntry = hideNewEntry
-    ? resultsWithText
-    : concat(resultsWithText, { text: '' });
-
-  const entryInputs = map(index => (
+  let entryInputs = map(index => (
     <EntryInput
       key={index}
-      textInput={textInputsWithNewEntry[index]}
-      result={resultsWithNewEntry[index]}
+      textInput={textInputs[index]}
+      result={resultsWithText[index]}
       onChangeText={text => setTextInput(index, text)}
     />
-  ), keys(resultsWithNewEntry));
+  ), keys(resultsWithText));
+
+  if (!hideNewEntry) {
+    const nextIndex = entryInputs.length;
+    const placeholder = (
+      <EntryInput
+        key={nextIndex}
+        textInput=""
+        result=""
+        onChangeText={text => setTextInput(nextIndex, text)}
+        hideResult
+      />
+    );
+    entryInputs = concat(entryInputs, placeholder);
+  }
 
   return (
     <View>
       {entryInputs}
       <View style={[styles.entryContainer, styles.entryContainerLast]}>
         <Text style={styles.result}>
-          <Text style={styles.totalTitle}>TOTAL</Text>&ensp;100
+          <Text style={styles.totalTitle}>TOTAL</Text>&ensp;{getOr('-', 'pretty', total)}
         </Text>
       </View>
     </View>
@@ -125,9 +142,10 @@ const EntryStackView = ({ textInputs, results, setTextInput }) => {
 };
 
 export default connect(
-  ({ sectionTextInputs, sectionResults }, { sectionId }) => ({
+  ({ sectionTextInputs, sectionResults, sectionTotals }, { sectionId }) => ({
     textInputs: getOr([], sectionId, sectionTextInputs),
     results: get(sectionId, sectionResults),
+    total: get(sectionId, sectionTotals),
   }),
   (dispatch, { sectionId }) => ({
     setTextInput: (index, text) => dispatch(setTextInput(sectionId, index, text)),

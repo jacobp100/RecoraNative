@@ -1,12 +1,12 @@
 // @flow
 import React, { Component } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient';
 import { getOr } from 'lodash/fp';
 import HorizontallyRepeatingImage from './HorizontallyRepeatingImage';
 import HighlightedEntryInput from './HighlightedEntryInput';
-import { setQuickCalculationInput } from '../redux';
+import { setQuickCalculationInput, getQuickCalculationExample } from '../redux';
 
 const borderImage = require('../../assets/border-image.png');
 
@@ -28,7 +28,6 @@ const styles = StyleSheet.create({
   },
   containerPadded: {
     padding: 24,
-    paddingBottom: 36,
   },
   title: {
     fontSize: 36,
@@ -48,21 +47,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textInput: {
-    ...paddingStyles,
+    paddingVertical: 6,
+    paddingHorizontal: 18,
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     fontSize: 14,
   },
+  resultExampleContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+  },
   resultContainer: {
-    ...paddingStyles,
-    maxWidth: 150,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    flex: 1,
   },
   result: {
+    paddingVertical: 12,
     textAlign: 'right',
-    color: 'black',
+    color: 'white',
+    backgroundColor: 'transparent',
     fontWeight: '600',
-    marginTop: 5,
+  },
+  exampleButton: {
+    top: 2,
+    paddingVertical: 12,
+    backgroundColor: 'transparent',
+    color: 'white',
+    textAlign: 'left',
+    fontSize: 12,
   },
 });
 
@@ -74,8 +85,7 @@ class QuickCalculation extends Component {
   onChange = (e) => {
     const { text } = e.nativeEvent;
     const textInput = text.replace(/\n/g, '');
-    const { onChangeText } = this.props;
-    if (onChangeText) onChangeText(textInput);
+    this.props.setQuickCalculationInput(textInput);
   }
 
   onContentSizeChange = (e) => {
@@ -85,7 +95,7 @@ class QuickCalculation extends Component {
 
   render() {
     const { textInputHeight } = this.state;
-    const { textInput, result } = this.props;
+    const { textInput, result, getQuickCalculationExample } = this.props;
 
     return (
       <LinearGradient
@@ -100,30 +110,34 @@ class QuickCalculation extends Component {
             </Text>
           </View>
           <View style={styles.quickCalculationContainer}>
-            <View style={styles.textInputContainer}>
-              <TextInput
-                style={[styles.textInput, { height: textInputHeight }]}
-                placeholder="Type a quick calculation"
-                placeholderTextColor="rgba(218, 28, 120, 0.3)"
-                returnKeyType="done"
-                onChange={this.onChange}
-                onContentSizeChange={this.onContentSizeChange}
-                multiline
-                blurOnSubmit
-              >
-                <HighlightedEntryInput
-                  text={textInput}
-                  result={result}
-                  hideBackground
-                />
-              </TextInput>
-            </View>
-            <View style={styles.resultContainer}>
+            <TextInput
+              style={[styles.textInput, { height: textInputHeight }]}
+              placeholder="Type a quick calculation"
+              placeholderTextColor="rgba(218, 28, 120, 0.3)"
+              returnKeyType="done"
+              onChange={this.onChange}
+              onContentSizeChange={this.onContentSizeChange}
+              multiline
+              blurOnSubmit
+            >
+              <HighlightedEntryInput
+                text={textInput}
+                result={result}
+                hideBackground
+              />
+            </TextInput>
+          </View>
+          <View style={styles.resultExampleContainer}>
+            <TouchableOpacity onPress={getQuickCalculationExample}>
               <Text
-                style={styles.result}
-                ellipsizeMode="middle"
+                style={styles.exampleButton}
                 numberOfLines={1}
               >
+                Example
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.resultContainer}>
+              <Text style={styles.result} numberOfLines={1}>
                 {getOr('?', 'pretty', result)}
               </Text>
             </View>
@@ -142,5 +156,5 @@ export default connect(
     textInput: state.quickCalculationInput,
     result: state.quickCalculationResult,
   }),
-  { onChangeText: setQuickCalculationInput }
+  { setQuickCalculationInput, getQuickCalculationExample }
 )(QuickCalculation);

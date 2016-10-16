@@ -1,8 +1,9 @@
 // @flow
 import {
   get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
-  over, uniqueId, includes, merge, propertyOf, map, intersection,
+  over, uniqueId, includes, merge, propertyOf, map, intersection, sample,
 } from 'lodash/fp';
+import quickCalculationExamples from './quickCalculationExamples.json';
 import type { State, SectionId, DocumentId, RecoraResult } from '../types';
 
 
@@ -31,6 +32,7 @@ const REORDER_SECTIONS = 'recora:REORDER_SECTIONS';
 const DELETE_DOCUMENT = 'recora:DELETE_DOCUMENT';
 const DELETE_SECTION = 'recora:DELETE_SECTION';
 const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
+const GET_QUICK_CALCULATION_EXAMPLE = 'recora:GET_QUICK_CALCULATION_EXAMPLE';
 const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
 
 const getExistingIds = flow(
@@ -156,6 +158,13 @@ export default (state: State = defaultState, action: Object): State => {
       return doDeleteSection(action.sectionId, state);
     case SET_QUICK_CALCULATION_INPUT:
       return set('quickCalculationInput', action.quickCalculationInput, state);
+    case GET_QUICK_CALCULATION_EXAMPLE: {
+      let example;
+      do {
+        example = sample(quickCalculationExamples);
+      } while (state.quickCalculationInput === example);
+      return set('quickCalculationInput', example, state);
+    }
     case SET_QUICK_CALCULATION_RESULT:
       return set('quickCalculationResult', action.quickCalculationResult, state);
     default:
@@ -190,6 +199,8 @@ export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
 export const setQuickCalculationInput = (quickCalculationInput: string) =>
   ({ type: SET_QUICK_CALCULATION_INPUT, quickCalculationInput });
+export const getQuickCalculationExample = () =>
+  ({ type: GET_QUICK_CALCULATION_EXAMPLE });
 export const setQuickCalculationResult = (quickCalculationResult: RecoraResult) =>
   ({ type: SET_QUICK_CALCULATION_RESULT, quickCalculationResult });
 export { loadDocuments, loadDocument } from './persistenceMiddleware';

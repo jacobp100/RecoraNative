@@ -2,6 +2,7 @@
 import Recora from 'recora';
 import { setQuickCalculationResult } from './index';
 
+
 export default () => ({ getState, dispatch }) => {
   const instance = new Recora();
 

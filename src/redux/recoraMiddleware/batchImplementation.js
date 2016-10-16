@@ -1,5 +1,7 @@
 // @flow
-import { map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEmpty } from 'lodash/fp';
+import {
+  map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEmpty, compact, reduce, flow,
+} from 'lodash/fp';
 import Recora from 'recora';
 import type { SectionId } from '../../types';
 import createFiberRunner from './fiberRunner';
@@ -127,7 +129,25 @@ export default ({
     }
 
     const entries = map('result', results);
-    const total = instance.parse('');
+
+    // FIXME: Try to not use internal API
+    const total = flow(
+      map('value'),
+      compact,
+      ([head, ...tail]) => reduce((left, right) => ({
+        type: 'NODE_FUNCTION',
+        name: 'add',
+        args: [left, right],
+      }), head, tail),
+      totalAst => instance.resolver.resolve(totalAst),
+      value => ({
+        text: '',
+        value,
+        pretty: value ? instance.formatter.format(instance.resolverContext, value) : '',
+        tokens: [],
+      })
+    )(entries);
+
     forEach(resultListener => resultListener(sectionId, entries, total), resultListeners);
 
     delete queuedInputs[sectionId];

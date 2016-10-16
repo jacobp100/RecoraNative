@@ -21,12 +21,7 @@ const Section = ({
   showSectionTitle,
   sectionId,
   sectionTitle,
-  sectionResults,
-  sectionTotal,
 }) => {
-  const ready = Boolean(sectionResults);
-  const totalElement = sectionTotal && <TotalRow ready={ready} total={sectionTotal} />;
-
   const titleElement = showSectionTitle && (
     <View>
       <Text style={styles.title}>{sectionTitle}</Text>
@@ -39,7 +34,6 @@ const Section = ({
     <View>
       {titleElement}
       <EntryComponent sectionId={sectionId} />
-      {totalElement}
     </View>
   );
 };
@@ -47,8 +41,6 @@ const Section = ({
 export default connect(
   ({ sectionTitles, sectionResults, sectionTotals }, { sectionId }) => ({
     sectionTitle: get(sectionId, sectionTitles),
-    sectionResults: get(sectionId, sectionResults),
-    sectionTotal: get(sectionId, sectionTotals),
   }),
   null,
   null,

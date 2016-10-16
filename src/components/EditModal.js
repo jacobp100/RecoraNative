@@ -4,7 +4,7 @@ import { ScrollView, View, Text, TextInput, TouchableHighlight, StyleSheet } fro
 import { connect } from 'react-redux';
 import { getOr } from 'lodash/fp';
 import SortableTable from './SortableTable';
-import { setDocumentTitle, addSection, reorderSections } from '../redux';
+import { setDocumentTitle, reorderSections, addSection, deleteSection } from '../redux';
 
 const styles = StyleSheet.create({
   container: {
@@ -75,7 +75,9 @@ class EditModal extends Component {
   didEditDocumentTitle = false;
 
   render() {
-    const { closeModal, title, sections, sectionTitles, addSection, reorderSections } = this.props;
+    const {
+      closeModal, title, sections, sectionTitles, reorderSections, addSection, deleteSection,
+    } = this.props;
     const { draggingTableItems } = this.state;
 
     return (
@@ -96,6 +98,7 @@ class EditModal extends Component {
                 onDragStart={this.startDraggingTableItems}
                 onDragEnd={this.endDraggingTableItems}
                 onOrderChange={reorderSections}
+                onDeletePress={deleteSection}
                 isEditing
               />
             </View>
@@ -135,7 +138,8 @@ export default connect(
   }),
   (dispatch, { documentId }) => ({
     setDocumentTitle: text => dispatch(setDocumentTitle(documentId, text)),
-    addSection: () => dispatch(addSection(documentId)),
     reorderSections: order => dispatch(reorderSections(documentId, order)),
+    addSection: () => dispatch(addSection(documentId)),
+    deleteSection: sectionId => dispatch(deleteSection(sectionId)),
   })
 )(EditModal);
