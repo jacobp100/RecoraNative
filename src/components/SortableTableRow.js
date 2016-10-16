@@ -91,7 +91,12 @@ export default ({
       </TouchableOpacity>}
       <View style={[styles.rowTitle, isEditing && styles.rowTitleEditing]}>
         {isEditing ? (
-          <TextInput style={styles.rowTextInput} value={title} onChangeText={onChangeText} />
+          <TextInput
+            style={styles.rowTextInput}
+            value={title}
+            onChangeText={onChangeText}
+            returnKeyType="done"
+          />
         ) : (
           <TouchableOpacity onPress={onRowPress}>
             <View style={styles.rowContentContainer}>

@@ -39,7 +39,7 @@ export default class SortableTable extends Component {
       if (rowId === this.state.draggingId) return;
       const rowTop = this.state.rowTops[rowId];
       const toValue = this.rowTopForIndex(index);
-      Animated.spring(rowTop, { toValue, velocity: 0, friction: 5 }).start();
+      Animated.spring(rowTop, { toValue, friction: 6.5 }).start();
     }, keys(draggingOrder));
   }
 

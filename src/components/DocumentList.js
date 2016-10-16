@@ -1,7 +1,8 @@
 // @flow
 import React, { Component } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
 import { addDocument, deleteDocument, setDocumentTitle, reorderDocuments } from '../redux';
@@ -55,12 +56,7 @@ class DocumentList extends Component {
     const { draggingTableItems, editingTableItems } = this.state;
 
     return (
-      <ScrollView
-        style={{ flex: 1 }}
-        keyboardDismissMode="interactive"
-        scrollEnabled={!draggingTableItems}
-        showsVerticalScrollIndicator
-      >
+      <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
         <QuickCalculation />
         <View style={styles.actionRow}>
           <View style={styles.flex} />
@@ -88,7 +84,7 @@ class DocumentList extends Component {
           onRowChangeText={setDocumentTitle}
           onOrderChange={reorderDocuments}
         />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     );
   }
 }

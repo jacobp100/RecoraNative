@@ -71,7 +71,7 @@ class TextView extends Component {
 
   setWidthTextInputWidth = (e) => {
     const { width } = e.nativeEvent.layout;
-    const textInputWidth = clamp(100, 400, width * 0.66) - (2 * paddingHorizontal);
+    const textInputWidth = clamp(100, 600, width * 0.66) - (2 * paddingHorizontal);
     this.setState({ width, textInputWidth });
   }
 

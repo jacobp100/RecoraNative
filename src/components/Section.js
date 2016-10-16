@@ -23,7 +23,7 @@ const Section = ({
   sectionTitle,
 }) => {
   const titleElement = showSectionTitle && (
-    <View>
+    <View style={{ backgroundColor: portrait ? '#f8f8f8' : 'white' }}>
       <Text style={styles.title}>{sectionTitle}</Text>
     </View>
   );

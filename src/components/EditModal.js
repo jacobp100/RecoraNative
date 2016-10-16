@@ -2,6 +2,7 @@
 import React, { Component } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableHighlight, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { getOr } from 'lodash/fp';
 import SortableTable from './SortableTable';
 import { setDocumentTitle, reorderSections, addSection, deleteSection } from '../redux';
@@ -81,7 +82,7 @@ class EditModal extends Component {
     const { draggingTableItems } = this.state;
 
     return (
-      <ScrollView style={styles.container} scrollEnabled={!draggingTableItems}>
+      <KeyboardAwareScrollView style={styles.container} scrollEnabled={!draggingTableItems}>
         <View style={styles.sectionContainer}>
           <View style={[styles.sectionBody, styles.padBottomSectionBody]}>
             <Text style={styles.title}>TITLE</Text>
@@ -125,7 +126,7 @@ class EditModal extends Component {
             </View>
           </TouchableHighlight>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     );
   }
 }
