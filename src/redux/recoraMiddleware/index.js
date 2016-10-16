@@ -18,17 +18,21 @@ const middleware = (
     const returnValue = next(action);
     const nextState: State = getState();
 
+    if (nextState.customUnits !== previousState.customUnits) {
+      batchImplementation.setCustomUnits(nextState.customUnits);
+    }
+
     const { added, changed, removed } = getAddedChangedRemovedSectionItems(
       nextState.sectionTextInputs,
       previousState.sectionTextInputs
     );
 
-    forEach(batchImplementation.unqueueSection, removed);
+    forEach(batchImplementation.unloadSection, removed);
 
-    const sectionsToQueue = concat(added, changed);
+    const sectionsToLoad = concat(added, changed);
     forEach(sectionId => (
-      batchImplementation.queueSection(sectionId, nextState.sectionTextInputs[sectionId])
-    ), sectionsToQueue);
+      batchImplementation.loadSection(sectionId, nextState.sectionTextInputs[sectionId])
+    ), sectionsToLoad);
 
     return returnValue;
   };

@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import LinearGradient from 'react-native-linear-gradient';
+import LinearGradient from 'react-native-linear-gradient'; // eslint-disable-line
 import { getOr } from 'lodash/fp';
 import HorizontallyRepeatingImage from './HorizontallyRepeatingImage';
 import HighlightedEntryInput from './HighlightedEntryInput';
@@ -16,11 +16,6 @@ const borderImageWidth = 512;
 
 const overflow = 400;
 
-const paddingStyles = {
-  paddingVertical: 6,
-  paddingHorizontal: 18,
-};
-
 const styles = StyleSheet.create({
   container: {
     paddingTop: overflow,
@@ -33,8 +28,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '200',
     textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 36,
+    marginBottom: 24,
     color: 'white',
     backgroundColor: 'transparent',
   },

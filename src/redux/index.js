@@ -1,7 +1,7 @@
 // @flow
 import {
   get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
-  over, uniqueId, includes, merge, propertyOf, map, intersection, sample,
+  over, uniqueId, includes, merge, propertyOf, map, intersection, sample, omit,
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import type { State, SectionId, DocumentId, RecoraResult } from '../types';
@@ -17,6 +17,7 @@ const defaultState: State = {
   sectionTotals: {},
   quickCalculationInput: '',
   quickCalculationResult: { text: '' },
+  customUnits: {},
 };
 
 const MERGE_STATE = 'recora:MERGE_STATE';
@@ -34,6 +35,8 @@ const DELETE_SECTION = 'recora:DELETE_SECTION';
 const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
 const GET_QUICK_CALCULATION_EXAMPLE = 'recora:GET_QUICK_CALCULATION_EXAMPLE';
 const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
+const SET_CUSTOM_UNITS = 'recora:SET_CUSTOM_UNITS';
+const UNLOAD_SECTIONS = 'recora:UNLOAD_SECTIONS';
 
 const getExistingIds = flow(
   over([
@@ -167,6 +170,10 @@ export default (state: State = defaultState, action: Object): State => {
     }
     case SET_QUICK_CALCULATION_RESULT:
       return set('quickCalculationResult', action.quickCalculationResult, state);
+    case SET_CUSTOM_UNITS:
+      return set('customUnits', action.customUnits, state);
+    case UNLOAD_SECTIONS:
+      return update('sectionTextInputs', omit(action.sectionIds), state);
     default:
       return state;
   }
@@ -203,5 +210,10 @@ export const getQuickCalculationExample = () =>
   ({ type: GET_QUICK_CALCULATION_EXAMPLE });
 export const setQuickCalculationResult = (quickCalculationResult: RecoraResult) =>
   ({ type: SET_QUICK_CALCULATION_RESULT, quickCalculationResult });
+export const setCustomUnits = (customUnits: Object) =>
+  ({ type: SET_CUSTOM_UNITS, customUnits });
+export const unloadSections = (sectionIds: SectionId) =>
+  ({ type: UNLOAD_SECTIONS, sectionIds });
 export { loadDocuments, loadDocument } from './persistenceMiddleware';
+export { setActiveDocument } from './cacheInvalidationMiddleware';
 /* eslint-enable */

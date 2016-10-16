@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import { NavigatorIOS } from 'react-native';
 import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
-import { loadDocuments, loadDocument } from '../redux';
+import { loadDocuments, loadDocument, setActiveDocument } from '../redux';
 import DocumentList from './DocumentList';
 import DocumentView from './DocumentView';
 
@@ -34,7 +34,9 @@ class Recora extends Component {
 
   navigateDocument = (documentId) => {
     if (!this.navigator) return;
+    if (this.previousDocumentId) this.props.unloadDocument(this.previousDocumentId);
     this.props.loadDocument(documentId);
+    this.props.setActiveDocument(documentId);
     this.navigator.push(this.getRouteFor(documentId));
   }
 
@@ -47,6 +49,7 @@ class Recora extends Component {
 
   navigator = null;
   documentView = null;
+  previousDocumentId = null;
 
   render() {
     return (
@@ -70,5 +73,5 @@ export default connect(
   state => ({
     documentTitles: state.documentTitles,
   }),
-  { loadDocuments, loadDocument }
+  { loadDocuments, loadDocument, setActiveDocument }
 )(Recora);

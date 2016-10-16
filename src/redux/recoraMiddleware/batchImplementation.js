@@ -1,6 +1,7 @@
 // @flow
 import {
   map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEmpty, compact, reduce, flow,
+  mapValues,
 } from 'lodash/fp';
 import Recora from 'recora';
 import type { SectionId } from '../../types';
@@ -46,6 +47,7 @@ export default ({
 
   // Global state (All objects mutable)
   let resultListeners = [];
+  let customUnits = {};
   const queuedInputs: { [key:SectionId]: string[] } = {};
   const previousResultsPerSection: { [key:SectionId]: Result[] } = {};
   const constantsPerSection: { [key:SectionId]: ImmutableConstants } = {};
@@ -56,6 +58,7 @@ export default ({
   const getInstanceFor = (sectionId) => {
     if (sectionId in instancesPerSection) return instancesPerSection[sectionId];
     const instance = new Recora();
+    instance.setCustomUnits(customUnits);
     const constants = constantsPerSection[sectionId];
     if (constants) instance.setConstants(constants);
     return instance;
@@ -163,14 +166,39 @@ export default ({
     queueComputation();
   };
 
+  const clearCacheFor = (sectionId) => {
+    delete previousResultsPerSection[sectionId];
+    delete constantsPerSection[sectionId];
+    delete instancesPerSection[sectionId];
+  };
+
   return {
-    queueSection: (sectionId, inputs) => {
+    loadSection: (sectionId, inputs) => {
       queuedInputs[sectionId] = inputs;
       resetFiberFor(sectionId);
     },
-    unqueueSection: (sectionId) => {
+    unloadSection: (sectionId) => {
       delete queuedInputs[sectionId];
+      clearCacheFor(sectionId);
       resetFiberFor(sectionId);
+    },
+    setCustomUnits: (units) => {
+      customUnits = units;
+
+      const previousSectionIds = keys(previousResultsPerSection);
+      const previousInputsPerSection = mapValues(map('input'), previousResultsPerSection);
+
+      forEach(sectionId => {
+        clearCacheFor(sectionId);
+
+        if (!queuedInputs[sectionId]) {
+          queuedInputs[sectionId] = previousInputsPerSection[sectionId];
+        }
+      }, previousSectionIds);
+
+      if (fiber) fiber.cancel();
+      fiber = null;
+      queueComputation();
     },
     addResultListener: callback => {
       resultListeners = concat(resultListeners, callback);

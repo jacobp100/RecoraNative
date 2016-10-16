@@ -7,8 +7,9 @@ export type ResultListenerCallback = (
   total: RecoraResult
 ) => void;
 export type BatchImplementation = {
-  queueSection: (sectionId: SectionId, inputs: string[]) => void,
-  unqueueSection: (sectionId: SectionId) => void,
+  loadSection: (sectionId: SectionId, inputs: string[]) => void,
+  unloadSection: (sectionId: SectionId) => void,
+  setCustomUnits: (units: Object) => void,
   addResultListener: (callback: ResultListenerCallback) => void,
 };
 export type Result = {
