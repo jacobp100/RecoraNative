@@ -1,6 +1,6 @@
 // @flow
 import React, { Component, PropTypes } from 'react';
-import { View, requireNativeComponent } from 'react-native';
+import { requireNativeComponent } from 'react-native';
 
 const SortableTableIOS = requireNativeComponent('RCTTableView', {
   name: 'RCTTableView',
@@ -8,6 +8,9 @@ const SortableTableIOS = requireNativeComponent('RCTTableView', {
     rows: PropTypes.arrayOf(PropTypes.string),
     rowTitles: PropTypes.objectOf(PropTypes.string),
     onContentSizeChanged: PropTypes.func,
+    onRowPress: PropTypes.func,
+    onDeletePress: PropTypes.func,
+    onRowChangeText: PropTypes.func,
   },
 }, {
   nativeOnly: {
@@ -23,13 +26,20 @@ export default class SortableTable extends Component {
   }
 
   state = {
-    height: 300,
+    height: 100,
   }
 
   onContentSizeChanged = (e) => {
     const { height } = e.nativeEvent;
-    console.log(e.nativeEvent);
-    this.setState({ height: 300 });
+    this.setState({ height });
+  }
+
+  onRowPress = (e) => {
+    if (this.props.onRowPress) this.props.onRowPress(e.nativeEvent.id);
+  }
+
+  onDeletePress = (e) => {
+    if (this.props.onDeletePress) this.props.onDeletePress(e.nativeEvent.id);
   }
 
   render() {
@@ -37,13 +47,14 @@ export default class SortableTable extends Component {
     const { height } = this.state;
 
     return (
-      <View style={{ height, borderWidth: 1 }}>
-        <SortableTableIOS
-          rows={rows}
-          rowTitles={rowTitles}
-          onContentSizeChanged={this.onContentSizeChanged}
-        />
-      </View>
+      <SortableTableIOS
+        style={{ height }}
+        rows={rows}
+        rowTitles={rowTitles}
+        onContentSizeChanged={this.onContentSizeChanged}
+        onRowPress={this.onRowPress}
+        onDeletePress={this.onDeletePress}
+      />
     );
   }
 }

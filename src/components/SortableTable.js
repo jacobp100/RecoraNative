@@ -2,7 +2,7 @@
 import React, { Component } from 'react';
 import { View, PanResponder, Animated } from 'react-native';
 import {
-  map, memoize, fromPairs, zip, range, isEqual, forEach, keys, clamp, stubTrue, curry, pullAt, flow,
+  map, memoize, fromPairs, zip, range, forEach, keys, clamp, stubTrue, curry, pullAt, flow,
 } from 'lodash/fp';
 import SortableTableRow, { rowHeight } from './SortableTableRow';
 

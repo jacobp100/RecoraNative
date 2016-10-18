@@ -38,5 +38,8 @@ RCT_EXPORT_MODULE()
 RCT_EXPORT_VIEW_PROPERTY(rows, NSArray)
 RCT_EXPORT_VIEW_PROPERTY(rowTitles, NSDictionary)
 RCT_EXPORT_VIEW_PROPERTY(onContentSizeChanged, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onRowPress, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onDeletePress, RCTDirectEventBlock)
+RCT_EXPORT_VIEW_PROPERTY(onRowChangeText, RCTDirectEventBlock)
 
 @end

@@ -77,9 +77,9 @@ class DocumentList extends Component {
           rows={documents}
           rowTitles={documentTitles}
           isEditing={editingTableItems}
-          onRowPress={this.navigateDocument}
           onDragStart={this.startDraggingTableItems}
           onDragEnd={this.endDraggingTableItems}
+          onRowPress={this.navigateDocument}
           onDeletePress={deleteDocument}
           onRowChangeText={setDocumentTitle}
           onOrderChange={reorderDocuments}

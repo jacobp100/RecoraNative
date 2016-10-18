@@ -16,6 +16,9 @@ NSString *MyIdentifier = @"BasicTextCellReuseIdentifier";
 @interface RCTTableView () <UITableViewDelegate, UITableViewDataSource>
 
 @property (nonatomic, copy) RCTDirectEventBlock onContentSizeChanged;
+@property (nonatomic, copy) RCTDirectEventBlock onRowPress;
+@property (nonatomic, copy) RCTDirectEventBlock onDeletePress;
+@property (nonatomic, copy) RCTDirectEventBlock onRowChangeText;
 
 @end
 
@@ -33,7 +36,7 @@ NSString *MyIdentifier = @"BasicTextCellReuseIdentifier";
 - (instancetype)initWithFrame:(CGRect)frame
 {
   if ((self = [super initWithFrame:frame])) {
-    _tableView = [[UITableView alloc] initWithFrame:frame];
+    _tableView = [[UITableView alloc] initWithFrame:self.bounds];
     _tableView.delegate = self;
     _tableView.dataSource = self;
     [self addSubview:_tableView];
@@ -52,41 +55,83 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 - (void)setRows:(NSArray *)rows
 {
   _rows = rows;
-  
-  if (!_rowTitles) return;
 
-  [_tableView reloadData];
-
-  if (_onContentSizeChanged) {
-    CGFloat height = [_tableView contentSize].height;
-
-    NSDictionary *event = @{
-      @"height": @(height),
-    };
-    _onContentSizeChanged(event);
+  if (_rowTitles != nil) {
+    [_tableView reloadData];
+    [self sendContentHeightEvent];
   }
+
+//  NSArray *oldRows = _rows;
+//  _rows = rows;
+//
+//  if (_rows != nil) {
+//    [CATransaction begin];
+//
+//    [CATransaction setCompletionBlock:^{
+//      [_tableView reloadData];
+//      [self sendContentHeightEvent];
+//    }];
+//
+//    [_tableView beginUpdates];
+//
+//    NSArray<NSString *> *deletedRows = [oldRows filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id row, NSDictionary *bindings) {
+//      return ![rows containsObject:row];
+//    }]];
+//    NSArray<NSString *> *insertedRows = [rows filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(id row, NSDictionary *bindings) {
+//      return ![oldRows containsObject:row];
+//    }]];
+//
+//    NSMutableArray<NSString *> *nextRows = [oldRows mutableCopy];
+//    NSMutableArray<NSIndexPath *> *indexPathsToDelete = [[NSMutableArray alloc] init];
+//    NSMutableArray<NSIndexPath *> *indexPathsToInsert = [[NSMutableArray alloc] init];
+//
+//    for (NSString *row in deletedRows) {
+//      NSUInteger i = [nextRows indexOfObject:row];
+//      [indexPathsToDelete addObject:[NSIndexPath indexPathForRow:i inSection:0]];
+//      [nextRows removeObjectAtIndex:i];
+//    }
+//
+//    for (NSString *row in insertedRows) {
+//      NSUInteger i = [rows indexOfObject:row];
+//      [indexPathsToInsert addObject:[NSIndexPath indexPathForRow:i inSection:0]];
+//      [nextRows insertObject:row atIndex:i];
+//    }
+//
+//    if ([nextRows count] != [rows count]) {
+//      @throw @"oh";
+//    }
+//
+//    [_tableView deleteRowsAtIndexPaths:indexPathsToDelete withRowAnimation:UITableViewRowAnimationLeft];
+//    [_tableView insertRowsAtIndexPaths:indexPathsToInsert withRowAnimation:UITableViewRowAnimationTop];
+//
+//    [_tableView endUpdates];
+//
+//    [CATransaction commit];
+//  } else if (_rowTitles != nil) {
+//    [_tableView reloadData];
+//    [self sendContentHeightEvent];
+//  }
 }
 
 - (void)setRowTitles:(NSDictionary *)rowTitles
 {
   _rowTitles = rowTitles;
   
-  if (_rows) [_tableView reloadData];
-}
-
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
-{
-  NSLog(@"\n\n\n\n\n\n\n\n\n\n:D\n\n\n\n\n\n\n\n\n\n\n\n");
-  return 1;
+  if (_rows != nil) [_tableView reloadData];
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
-  NSLog(@"\n\n\n\n\n\n\n\n\n\n:D\n\n\n\n\n\n\n\n\n\n\n\n");
-  return 5;// [_rows count];
+  return [_rows count];
 }
 
--(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
+{
+  return YES;
+}
+
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
   if (tableView != _tableView) return nil;
 
@@ -98,20 +143,43 @@ RCT_NOT_IMPLEMENTED(- (instancetype)initWithCoder:(NSCoder *)aDecoder)
 
   NSString *row = [_rows objectAtIndex:indexPath.row];
   NSString *title = row ? [_rowTitles objectForKey:row] : nil;
-  cell.textLabel.text = title ? title : @"";
-  cell.textLabel.text = @":D";
+  cell.textLabel.text = title ? title : @"?";
 
   return cell;
 }
 
-- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
-  NSString *item = [_rows objectAtIndex:indexPath.row];
-  NSString *title = item ? [_rowTitles objectForKey:item] : nil;
-  
-  UILabel *label = [cell textLabel];
-  
-  if (label && title) label.text = title;
+  if (_onRowPress) {
+    NSDictionary *event = @{
+      @"id": [_rows objectAtIndex:indexPath.row],
+    };
+    _onRowPress(event);
+  }
+  [_tableView deselectRowAtIndexPath:indexPath animated:YES];
+}
+
+- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+  if (editingStyle == UITableViewCellEditingStyleDelete) {
+    if (_onDeletePress) {
+      NSDictionary *event = @{
+        @"id": [_rows objectAtIndex:indexPath.row],
+      };
+      _onDeletePress(event);
+    }
+  }
+}
+
+- (void) sendContentHeightEvent
+{
+  if (_onContentSizeChanged) {
+    CGFloat height = [_tableView contentSize].height;
+
+    NSDictionary *event = @{
+      @"height": @(height),
+    };
+    _onContentSizeChanged(event);
+  }
 }
 
 @end
