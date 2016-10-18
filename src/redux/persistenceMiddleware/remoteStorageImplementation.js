@@ -60,7 +60,7 @@ const parseDocumentString = (id: DocumentId, string: string) => reduce((accum, l
   sectionTextInputs: {},
 }, string.split('\n'));
 
-export default (remote): StorageInterface => {
+export default (type, remote): StorageInterface => {
   const loadDocument = async (storageLocation: RemoteStorageLocation) => {
     const contents = await remote.fetch(storageLocation.userId, storageLocation.path);
     const documentId = createDocumentId();
@@ -77,6 +77,7 @@ export default (remote): StorageInterface => {
   const removeDocument = async () => {};
 
   return {
+    type,
     loadDocument,
     saveDocument,
     removeDocument,

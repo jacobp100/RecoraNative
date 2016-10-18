@@ -48,7 +48,8 @@ export const getPromiseStorage = (): PromiseStorage => ({
     Promise.resolve(map(key => global.localStorage.removeItem(key), keys)),
 });
 
-export type StorageLocation = { type: string };
+export type StorageLocationType = string;
+export type StorageLocation = { type: StorageLocationType };
 export type LocalStorageLocation = StorageLocation & { storageKey: string };
 export type RemoteStorageLocation = StorageLocation & { userId: string, path: string };
 export type Document = {
@@ -59,10 +60,20 @@ export type Document = {
   sectionTextInputs: { [key:SectionId]: string[] },
 };
 export type StorageInterface = {
-  loadDocument: (storageLocation: StorageLocation) =>
-    Promise<Document>,
-  saveDocument: (storageLocation: StorageLocation, document: Document, previous: Document) =>
-    Promise<StorageLocation>,
-  removeDocument: (storageLocation: StorageLocation, document: Document) =>
-    Promise<any>,
+  type: StorageLocationType,
+  loadDocument: (
+    storageLocation: StorageLocation,
+    lastRejection: any
+  ) => Promise<Document>,
+  saveDocument: (
+    storageLocation: StorageLocation,
+    document: Document,
+    previous: Document,
+    lastRejection: any
+  ) => Promise<StorageLocation>,
+  removeDocument: (
+    storageLocation: StorageLocation,
+    document: Document,
+    lastRejection: any
+  ) => Promise<any>,
 };

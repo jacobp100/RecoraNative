@@ -1,6 +1,6 @@
 // @flow
 import {
-  concat, map, fromPairs, isEmpty, isEqual, compact, zip, values, some, propertyOf, over, flow,
+  concat, map, fromPairs, isEmpty, isEqual, compact, zip, some, propertyOf, over, flow,
 } from 'lodash/fp';
 import { getAddedChangedRemovedSectionItems, getPromiseStorage } from '../util';
 import type { PromiseStorage, Document, StorageInterface, LocalStorageLocation } from '../util'; // eslint-disable-line
@@ -134,7 +134,7 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
       saveDocumentDescriptor(storageLocation, currentDocument);
 
     const { documentSections, storageLocations } = documentDescriptor;
-    await saveSections(storageLocations, documentSections, sectionTextInputs);
+    await saveSections(sectionTextInputs, storageLocations, documentSections);
 
     return documentDescriptor;
   };
@@ -148,37 +148,43 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
 
     if (!documentDescriptor) return createDocument(currentDocument);
 
-    const hasChanges = some(key => (
+    const documentDescriptorDidChange = some(key => (
       !isEqual(currentDocument[key], previousDocument[key])
     ), simpleDocumentKeys);
 
-    if (hasChanges) {
+    if (documentDescriptorDidChange) {
       documentDescriptor =
         await saveDocumentDescriptor(storageLocation, documentDescriptor, currentDocument);
     }
 
     const { sectionTextInputs } = currentDocument;
-    const sectionStorageMap = getStorageLocationMap(
-      documentDescriptor.storageLocations,
-      documentDescriptor.documentSections
-    );
-    const getSectionStorageKey = propertyOf(sectionStorageMap);
 
-    const { added, changed, removed } = getAddedChangedRemovedSectionItems(
-      sectionTextInputs,
-      previousDocument.sectionTextInputs
-    );
-    const addedChanged = concat(added, changed);
+    if (!previousDocument) {
+      const { documentSections, storageLocations } = documentDescriptor;
+      await saveSections(sectionTextInputs, storageLocations, documentSections);
+    } else {
+      const sectionStorageMap = getStorageLocationMap(
+        documentDescriptor.storageLocations,
+        documentDescriptor.documentSections
+      );
+      const getSectionStorageKey = propertyOf(sectionStorageMap);
 
-    const removePromise = !isEmpty(removed)
-      ? removeSections(map(getSectionStorageKey, removed), removed)
-      : null;
+      const { added, changed, removed } = getAddedChangedRemovedSectionItems(
+        sectionTextInputs,
+        previousDocument.sectionTextInputs
+      );
+      const addedChanged = concat(added, changed);
 
-    const addChangePromise = !isEmpty(addedChanged)
-      ? saveSections(sectionTextInputs, map(getSectionStorageKey, addedChanged), addedChanged)
-      : null;
+      const removePromise = !isEmpty(removed)
+        ? removeSections(map(getSectionStorageKey, removed), removed)
+        : null;
 
-    await Promise.all(compact([removePromise, addChangePromise]));
+      const addChangePromise = !isEmpty(addedChanged)
+        ? saveSections(sectionTextInputs, map(getSectionStorageKey, addedChanged), addedChanged)
+        : null;
+
+      await Promise.all(compact([removePromise, addChangePromise]));
+    }
 
     return storageLocation; // Unchanged
   };
@@ -190,6 +196,7 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
   };
 
   return {
+    type: 'local',
     loadDocument,
     saveDocument,
     removeDocument,

@@ -1,11 +1,9 @@
 // @flow
-import {
-  __, concat, map, fromPairs, isEmpty, isEqual, flow, assign, pickBy, omitBy, keys, toPairs,
-  mapValues, get, pick, mapKeys, isNil, compact, every, has, curry,
-} from 'lodash/fp';
+import { isEqual, some, get, find } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { getPromiseStorage } from '../util';
 import { mergeState } from '../index';
+import asyncStorageImplementation from './asyncStorageImplementation';
 import type { PromiseStorage } from '../util'; // eslint-disable-line
 import type { State, DocumentId } from '../../types';
 
@@ -13,117 +11,79 @@ import type { State, DocumentId } from '../../types';
 const LOAD_DOCUMENTS = 'persintance-middleware:LOAD_DOCUMENTS';
 const LOAD_DOCUMENT = 'persintance-middleware:LOAD_DOCUMENT';
 
-const simpleKeys = [
-  'documents',
-  'documentTitles',
-];
+const documentsKey = 'documents';
+const keysToSave = ['documents', 'documentStorageLocations', 'documentTitles'];
 
-const getSectionStorageKey =
-  curry((storagePrefix, sectionId) => `${storagePrefix}::${sectionId}`);
-const getSectionFromStorageKey =
-  curry((storagePrefix, storageKey) => storageKey.substring(storagePrefix.length + 2));
-
-
-const getPatchForStates = (nextState, previousState) => flow(
-  map(key => [key, !isEqual(previousState[key], nextState[key]) ? nextState[key] : null]),
-  fromPairs,
-  omitBy(isNil)
-)(simpleKeys);
-
-const storagePairsToMap = flow(
-  fromPairs,
-  omitBy(isNil),
-  mapValues(JSON.parse)
-);
-
-export default (storage: PromiseStorage = getPromiseStorage()): any => ({ getState, dispatch }) => {
+export default (
+  storage: PromiseStorage = getPromiseStorage(),
+  implementations = [asyncStorageImplementation(storage)]
+): any => ({ getState, dispatch }) => {
   let storagePromise = Promise.resolve();
-  let storagePatch = {};
+
+  const promisesPerDocumentId = {};
+  const previousDocumentPerDocumentId = {};
+  const previousRejectionPerDocumentId = {};
 
   const queueStorageOperation = callback => {
     storagePromise = storagePromise.then(callback).catch(() => {});
   };
 
-  const doSave = async () => {
-    if (isEmpty(storagePatch)) return;
-
-    const storagePatchToApply = storagePatch;
-    storagePatch = {};
-
-    const keysToRemove = flow(pickBy(isNil), keys)(storagePatchToApply);
-    const pairsToSet = flow(omitBy(isNil), mapValues(JSON.stringify), toPairs)(storagePatchToApply);
-
-    try {
-      await Promise.all(compact([
-        keysToRemove && storage.multiRemove(keysToRemove),
-        pairsToSet && storage.multiSet(pairsToSet),
-      ]));
-    } catch (e) {
-      // Try to apply again in the next save
-      storagePatch = assign(storagePatchToApply, storagePatch);
-      queuePatch(); // eslint-disable-line
-    }
+  const doLoadDocumentsList = async () => {
+    const savedDocuments = await storage.getItem(documentsKey);
+    if (!savedDocuments) return;
+    const patch = JSON.parse(savedDocuments);
+    dispatch(mergeState(patch));
   };
 
-  const doLoadSimpleState = async () => {
-    const values = await storage.multiGet(simpleKeys);
-    const patch = flow(storagePairsToMap)(values);
-    if (!isEmpty(patch)) dispatch(mergeState(patch));
+  const doSaveDocumentsList = async () => {
+    const { documents, documentTitles } = getState();
+    await storage.setItem(documentsKey, JSON.stringify({ documents, documentTitles }));
   };
 
-  const doLoadDocument = async (documentId, state) => {
-    const sectionIds = get(['documentSections', documentId], state);
-
-    if (!sectionIds) return;
-    // Don't load if we've already loaded
-    if (every(has(__, state.sectionTextInputs), sectionIds)) return;
-
-    const sectionStorageKeys = map(getSectionStorageKey(sectionTextInputStoragePrefix), sectionIds);
-    const sectionPreviewStorageKeys = map(getSectionStorageKey(sectionPreviewPrefix), sectionIds);
-    const allKeys = concat(sectionStorageKeys, sectionPreviewStorageKeys);
-    const allValues = await storage.multiGet(allKeys);
-
-    const allMap = storagePairsToMap(allValues);
-
-    const sectionTextInputs = flow(
-      pick(sectionStorageKeys),
-      mapKeys(getSectionFromStorageKey(sectionTextInputStoragePrefix))
-    )(allMap);
-
-    const textToRecoraResult = pretty => ({ pretty });
-    const { resultTexts: sectionResults, totalTexts: sectionTotals } = flow(
-      pick(sectionPreviewStorageKeys),
-      mapKeys(getSectionFromStorageKey(sectionPreviewPrefix)),
-      mapValues(map(textToRecoraResult))
-    )(allMap);
-
-    const patch = omitBy(isNil, { sectionTextInputs, sectionResults, sectionTotals });
-    if (!isEmpty(patch)) dispatch(mergeState(patch));
+  const documentsListNeedsUpdating = (nextState, previousState) => {
+    const hasChange = some(key => !isEqual(nextState[key], previousState[key]), keysToSave);
+    return hasChange;
   };
 
-  const queuePatch = debounce(() => {
-    queueStorageOperation(doSave);
+  const doLoadDocument = (documentId) => {
+    const storageLocation = get(['documentStorageLocations', documentId], getState());
+    const implementationType = get('type', storageLocation);
+    const implementation = find({ type: implementationType }, implementations);
+    if (!implementation) return;
+
+    const existingPromise = promisesPerDocumentId[documentId] || Promise.resolve();
+    promisesPerDocumentId[documentId] = existingPromise
+      .then(() => implementation.loadDocument(storageLocation))
+      .then((document) => {
+        dispatch(setDocument(document));
+      }, () => {});
+  };
+
+  const doSaveDocument = (document) => {
+    const previousDocument = previousDocumentPerDocumentId[documentId];
+    const previousRejection = previousRejectionPerDocumentId[documentId];
+
+    const existingPromise = promisesPerDocumentId[documentId] || Promise.resolve();
+    promisesPerDocumentId[documentId] = existingPromise
+      .then(() => implementation.saveDocument(document, previousDocument, previousRejection))
+      .catch(() => {});
+  };
+
+  const queueDoSaveDocumentsList = debounce(() => {
+    queueStorageOperation(doSaveDocumentsList);
   }, 1000, { maxWait: 2000 });
-
-  const applyPatch = patch => {
-    if (!isEmpty(patch)) {
-      storagePatch = assign(storagePatch, patch);
-      queuePatch();
-    }
-  };
 
   return next => (action) => {
     const previousState: State = getState();
     const returnValue = next(action);
 
     if (action.type === LOAD_DOCUMENTS) {
-      queueStorageOperation(doLoadSimpleState);
+      queueStorageOperation(doLoadDocumentsList);
     } if (action.type === LOAD_DOCUMENT) {
-      doLoadDocument(action.documentId, previousState);
+      doLoadDocument(action.documentId);
     } else {
       const nextState: State = getState();
-      const patch = getPatchForStates(nextState, previousState);
-      applyPatch(patch);
+      if (documentsListNeedsUpdating(nextState, previousState)) queueDoSaveDocumentsList();
     }
 
     return returnValue;
