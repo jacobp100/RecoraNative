@@ -1,6 +1,6 @@
 // @flow
 import { map, keys, difference, intersection, reject, isEqual } from 'lodash/fp';
-import type { SectionId } from '../types';
+import type { DocumentId, SectionId } from '../types';
 
 /* eslint-disable import/prefer-default-export */
 type Items = { [key: SectionId]: any };
@@ -47,3 +47,22 @@ export const getPromiseStorage = (): PromiseStorage => ({
   multiRemove: keys =>
     Promise.resolve(map(key => global.localStorage.removeItem(key), keys)),
 });
+
+export type StorageLocation = { type: string };
+export type LocalStorageLocation = StorageLocation & { storageKey: string };
+export type RemoteStorageLocation = StorageLocation & { userId: string, path: string };
+export type Document = {
+  id: DocumentId,
+  title: string,
+  documentSections: SectionId[],
+  sectionTitles: { [key:SectionId]: string[] },
+  sectionTextInputs: { [key:SectionId]: string[] },
+};
+export type StorageInterface = {
+  loadDocument: (storageLocation: StorageLocation) =>
+    Promise<Document>,
+  saveDocument: (storageLocation: StorageLocation, document: Document, previous: Document) =>
+    Promise<StorageLocation>,
+  removeDocument: (storageLocation: StorageLocation, document: Document) =>
+    Promise<any>,
+};

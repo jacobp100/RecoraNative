@@ -4,11 +4,13 @@ import {
   over, uniqueId, includes, merge, propertyOf, map, intersection, sample, omit,
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
+import { append } from '../util';
 import type { State, SectionId, DocumentId, RecoraResult } from '../types';
 
 
 const defaultState: State = {
   documents: [],
+  documentStorageLocations: {},
   documentTitles: {},
   documentSections: {},
   sectionTitles: {},
@@ -53,11 +55,6 @@ const newId = (identifier, state) => {
   } while (includes(id, existingIds));
   return id;
 };
-
-
-const append = curry((value, array) => (
-  array ? concat(array, value) : [value]
-));
 
 const removeIdWithinKeys = curry((keysToUpdate, idToRemove, state) => reduce(
   (state, keyToUpdate) => unset([keyToUpdate, idToRemove], state),
@@ -113,6 +110,7 @@ export default (state: State = defaultState, action: Object): State => {
       return flow(
         update('documents', concat(id)),
         set(['documentTitles', id], 'New Document'),
+        set(['documentStorageLocations', id], { type: 'localStorage', storageKey: `document:${id}` }),
         doAddSection(id)
       )(state);
     }

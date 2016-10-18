@@ -1,41 +1,21 @@
 // @flow
 import {
-  __, reduce, concat, map, fromPairs, isEmpty, isEqual, curry, over, constant, partial, flow,
-  assign, pickBy, omitBy, keys, toPairs, mapValues, get, pick, mapKeys, isNil, compact, every, has,
+  __, concat, map, fromPairs, isEmpty, isEqual, flow, assign, pickBy, omitBy, keys, toPairs,
+  mapValues, get, pick, mapKeys, isNil, compact, every, has, curry,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
-import { getAddedChangedRemovedSectionItems, getPromiseStorage } from './util';
-import { mergeState } from './index';
-import type { PromiseStorage } from './util'; // eslint-disable-line
-import type { State, DocumentId } from '../types';
+import { getPromiseStorage } from '../util';
+import { mergeState } from '../index';
+import type { PromiseStorage } from '../util'; // eslint-disable-line
+import type { State, DocumentId } from '../../types';
 
 
 const LOAD_DOCUMENTS = 'persintance-middleware:LOAD_DOCUMENTS';
 const LOAD_DOCUMENT = 'persintance-middleware:LOAD_DOCUMENT';
 
-const sectionTextInputStoragePrefix = 'section';
-const sectionPreviewPrefix = 'section-preview';
-
 const simpleKeys = [
   'documents',
   'documentTitles',
-  'documentSections',
-  'sectionTitles',
-];
-const proxyKeys = [
-  {
-    storagePrefix: sectionTextInputStoragePrefix,
-    query: 'sectionTextInputs',
-    transform: (state, sectionId) => state.sectionTextInputs[sectionId],
-  },
-  {
-    storagePrefix: sectionPreviewPrefix,
-    query: 'sectionResults',
-    transform: (state, sectionId) => ({
-      resultTexts: map('pretty', state.sectionResults[sectionId]),
-      totalTexts: map('pretty', state.sectionTotals[sectionId]),
-    }),
-  },
 ];
 
 const getSectionStorageKey =
@@ -44,35 +24,11 @@ const getSectionFromStorageKey =
   curry((storagePrefix, storageKey) => storageKey.substring(storagePrefix.length + 2));
 
 
-const getPatchForStates = (nextState, previousState) => {
-  const simplePatch = flow(
-    map(key => [key, !isEqual(previousState[key], nextState[key]) ? nextState[key] : null]),
-    fromPairs,
-    omitBy(isNil)
-  )(simpleKeys);
-
-  const proxyPatch = reduce((proxyPatch, { query, transform, storagePrefix }) => {
-    const getStorageKey = getSectionStorageKey(storagePrefix);
-    const { added, changed, removed } =
-      getAddedChangedRemovedSectionItems(nextState[query], previousState[query]);
-
-    const removePatch = flow(
-      map(over([getStorageKey, constant(null)])),
-      fromPairs
-    )(removed);
-
-    const sectionsToPersist = concat(added, changed);
-    const setPatch = flow(
-      map(over([getStorageKey, partial(transform, [nextState])])),
-      fromPairs,
-    )(sectionsToPersist);
-
-    const newPatch = assign(setPatch, removePatch);
-    return assign(proxyPatch, newPatch);
-  }, {}, proxyKeys);
-
-  return assign(simplePatch, proxyPatch);
-};
+const getPatchForStates = (nextState, previousState) => flow(
+  map(key => [key, !isEqual(previousState[key], nextState[key]) ? nextState[key] : null]),
+  fromPairs,
+  omitBy(isNil)
+)(simpleKeys);
 
 const storagePairsToMap = flow(
   fromPairs,
