@@ -227,10 +227,24 @@ const applySavePatch = (
   )(patch);
 };
 
+const applyRemovePatch = (
+  patch: Patch,
+  storageOperation: StorageOperation
+): Patch => {
+  const { document } = storageOperation;
+  const { documentSections } = storageOperation;
+
+  return flow(
+    removeSections(documentSections, document),
+    update('keysToRemove', append(storageOperation.storageLocation.storageKey)),
+    update('storageLocations', append(null))
+  )(patch);
+};
+
 
 const storageModes = {
   [STORAGE_ACTION_SAVE]: applySavePatch,
-  [STORAGE_ACTION_REMOVE]: () => {},
+  [STORAGE_ACTION_REMOVE]: applyRemovePatch,
 };
 
 export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface => {

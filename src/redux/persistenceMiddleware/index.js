@@ -1,9 +1,10 @@
 // @flow
 import {
-  isEqual, some, get, isEmpty, pick, filter, difference, intersection, every, overSome, forEach,
-  mapValues, curry, keys, keyBy, map, concat,
+  __, isEqual, some, get, isEmpty, pick, filter, difference, intersection, every, overSome, update,
+  forEach, mapValues, curry, keys, keyBy, map, concat, fromPairs, zip, without, flow, reduce,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
+import { append } from '../../util';
 import { getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../util';
 import { mergeState } from '../index';
 import asyncStorageImplementation from './asyncStorageImplementation';
@@ -12,17 +13,39 @@ import type { // eslint-disable-line
 } from '../util';
 import type { State, DocumentId } from '../../types';
 
+/*
+This handles both saving the documents records (only the ids, storage locations, and titles) to the
+local storage, and the contents of the documents (ids, titles, sections, sectionTitles,
+sectionTextInputs) to whatever implementation they use. The implementation could simply be local
+storage, or it could be something like Dropbox or Google Drive.
+
+For both document records and document contents, diffing between two states is used to determine
+what changed.
+
+For the saving of the document records, we just use the next and previous state.
+
+For document contents, we work out if a document changed using the next and previous state, and
+create a timeout for the implementation to save all changed documents after a certain time. When
+the timeout is fired, we use what the state was the last time the implementation saved and the
+now current state to determine what documents changed, and request that the implementation saves
+those documents. For the first timeout, we use the previous redux state in the reducer.
+
+All document updates are sent as a batch, and we don't allow a single implementation to have
+multiple requests happening at a time.
+*/
 
 const LOAD_DOCUMENTS = 'persistence-middleware:LOAD_DOCUMENTS';
 const LOAD_DOCUMENT = 'persistence-middleware:LOAD_DOCUMENT';
 
 const documentsKey = 'documents';
 const keysToSave = ['documents', 'documentStorageLocations', 'documentTitles'];
+// Ensure we don't save extraneous keys for documents that don't exist
+// When deleting a document, the storageLocation is retained for a while
+const savedKeysToFilterByDocument = ['documentStorageLocations', 'documentTitles'];
 
-const documentsListNeedsUpdating = (nextState, previousState) => {
-  const hasChange = some(key => !isEqual(nextState[key], previousState[key]), keysToSave);
-  return hasChange;
-};
+const documentsListNeedsUpdating = (nextState, previousState) => (
+  some(key => !isEqual(nextState[key], previousState[key]), keysToSave)
+);
 
 const getPatchForDocument = (document: Document) => ({
   documentTitles: { [document.documentId]: document.documentTitle },
@@ -134,6 +157,9 @@ export default (
 
   const lastStatePerStorageType = {};
   const lastRejectionPerStorageType = {};
+  // When a document is loaded, it is put in the state, so sections and stuff are created.
+  // This normally triggers a save, when it shouldn't, so use this as a workaround.
+  const loadedDocumentsPerStorageType = {};
 
   const queueStorageOperation = callback => {
     storagePromise = storagePromise.then(callback, () => {});
@@ -158,6 +184,10 @@ export default (
     const document = await queueImplementationStorageOperation(storageType, () => (
       storageImplementation.loadDocument(storageLocation)
     ));
+
+    loadedDocumentsPerStorageType[storageType] =
+      append(document.id, loadedDocumentsPerStorageType[storageType]);
+
     dispatch(mergeState(getPatchForDocument(document)));
 
     return document;
@@ -171,8 +201,14 @@ export default (
   };
 
   const doSaveDocumentsList = async () => {
-    const { documents, documentTitles } = getState();
-    await storage.setItem(documentsKey, JSON.stringify({ documents, documentTitles }));
+    const documentRecords = flow(
+      pick(keysToSave),
+      reduce((documentRecords, keyToFilter) => (
+        update(keyToFilter, pick(documentRecords.documents), documentRecords)
+      ), __, savedKeysToFilterByDocument)
+    )(getState());
+
+    await storage.setItem(documentsKey, JSON.stringify(documentRecords));
   };
 
   const queueSaveDocumentsList = debounce(() => {
@@ -182,14 +218,21 @@ export default (
   const doUpdateStorageImplementation = async (storageType) => {
     const lastState = lastStatePerStorageType[storageType];
     const currentState = getState();
+    const { documents } = currentState;
 
-    const { added, changed, removed } = getChangedDocumentsForStorageType(
+    const addedChangedRemoved = getChangedDocumentsForStorageType(
       lastState,
       currentState,
       storageType
     );
 
-    const addedChanged = concat(added, changed);
+    const onlyDocumentsInState = intersection(documents);
+    const { added, changed, removed } = mapValues(onlyDocumentsInState, addedChangedRemoved);
+
+    const addedChanged = without(
+      loadedDocumentsPerStorageType[storageType] || [],
+      concat(added, changed)
+    );
 
     const getStorageOperation = curry((
       action: StorageAction,
@@ -208,12 +251,23 @@ export default (
     );
 
     try {
-      if (!isEmpty(storageOperations)) {
-        await storages[storageType].updateStore(storageOperations);
-      }
+      const storageLocations = !isEmpty(storageOperations)
+        ? await storages[storageType].updateStore(storageOperations)
+        : null;
 
       lastStatePerStorageType[storageType] = currentState;
       lastRejectionPerStorageType[storageType] = null;
+      loadedDocumentsPerStorageType[storageType] = [];
+
+      if (storageLocations) {
+        const documents = map('document', storageOperations);
+        const documentIds = map('id', documents);
+
+        const storageLocationPatch = fromPairs(zip(documentIds, storageLocations));
+        const patch = { documentStorageLocations: storageLocationPatch };
+
+        dispatch(mergeState(patch));
+      }
     } catch (e) {
       // leave lastStatePerStorageType so we can pick up from there
       lastRejectionPerStorageType[storageType] = e;

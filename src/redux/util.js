@@ -75,5 +75,5 @@ export type StorageInterface = {
   delay: Number,
   maxWait: Number,
   loadDocument: (storageLocation: StorageLocation, lastRejection: any) => Promise<Document>,
-  updateStore: (storageOperations: StorageOperotaion[]) => Promise<StorageLocation>,
+  updateStore: (storageOperations: StorageOperotaion[]) => Promise<(?StorageLocation)[]>,
 };

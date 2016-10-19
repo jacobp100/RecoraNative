@@ -1,7 +1,8 @@
 // @flow
 import {
   get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
-  over, uniqueId, includes, merge, propertyOf, map, intersection, sample, omit,
+  over, uniqueId, includes, isNull, propertyOf, map, intersection, sample, omit, mergeWith, omitBy,
+  isPlainObject,
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import { append } from '../util';
@@ -78,6 +79,7 @@ const documentKeys = [
   'documentTitles',
   'documentSections',
 ];
+// Don't delete the storageLocation, since we need it to actually delete the document
 const doDeleteDocument = curry((documentId, state) => flow(
   state => reduce(
     (state, sectionId) => doDeleteSection(sectionId, state),
@@ -101,10 +103,17 @@ const doAddSection = curry((documentId, state) => {
 });
 
 
+const mergeImplementation = (oldValue, newValue) => {
+  if (isPlainObject(oldValue)) {
+    return omitBy(isNull, mergeWith(mergeImplementation, oldValue, newValue));
+  }
+  return newValue;
+};
+
 export default (state: State = defaultState, action: Object): State => {
   switch (action.type) {
     case MERGE_STATE:
-      return merge(state, action.state);
+      return mergeWith(mergeImplementation, state, action.state);
     case ADD_DOCUMENT: {
       const id = newId('document', state);
       return flow(
