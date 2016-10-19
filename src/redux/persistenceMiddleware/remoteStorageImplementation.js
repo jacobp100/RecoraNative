@@ -1,11 +1,10 @@
 // @flow
 import {
-  map, reduce, startsWith, update, set, flow, uniqueId, trim, last,
+  map, reduce, startsWith, update, set, flow, uniqueId, trim, last, zip,
 } from 'lodash/fp';
-import { getAddedChangedRemovedSectionItems, getPromiseStorage } from '../util';
 import { append } from '../../util';
 import type { PromiseStorage, Document, StorageInterface, RemoteStorageLocation } from '../util'; // eslint-disable-line
-import type { DocumentId, SectionId } from '../../types';
+import type { DocumentId } from '../../types';
 
 const createDocumentId = () =>
   `document-${uniqueId()}`;
@@ -68,18 +67,24 @@ export default (type, remote): StorageInterface => {
     return document;
   };
 
-  const saveDocument = async (storageLocation: RemoteStorageLocation, document: Document) => {
-    const contents = documentToString(document);
-    await remote.post(storageLocation.userId, storageLocation.path, contents);
-    return storageLocation;
-  };
+  const saveDocuments = async (storageLocations: RemoteStorageLocation, documents: Document[]) => (
+    await Promise.all(map(flow(
+      documentToString,
+      zip(storageLocations),
+      ([storageLocation, contents]) => remote.post(
+        contents,
+        storageLocation.userId,
+        storageLocation.path
+      )
+    )), documents)
+  );
 
   const removeDocument = async () => {};
 
   return {
     type,
     loadDocument,
-    saveDocument,
+    saveDocuments,
     removeDocument,
   };
 };
