@@ -1,7 +1,7 @@
 // @flow
 import {
   __, concat, map, fromPairs, isEmpty, isEqual, compact, zip, some, propertyOf, over, flow, reduce,
-  set, mapValues, toPairs, update, get, has, curry, assign,
+  set, mapValues, toPairs, update, get, curry, assign,
 } from 'lodash/fp';
 import {
   getAddedChangedRemovedSectionItems, getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE,
@@ -13,14 +13,12 @@ import type { DocumentId, SectionId, StorageOperation } from '../../types';
 
 
 /*
-TL;DR
-
 A document is saved as,
 
 key: 'document:document-1'
 value: {
-  id: 'document-1',
-  title: 'Document',
+  documentId: 'document-1',
+  documentTitle: 'Document',
   documentSections: ['section-1', 'section-2'],
   sectionTitles: ['Section 1', 'Section 2'],
   storageLocations: [
@@ -49,11 +47,11 @@ all the DocumentDescriptors, and then optionally one read and optionally one wri
 everything in one go.
 */
 
-const simpleDocumentKeys = ['id', 'title', 'documentSections', 'sectionTitles'];
+const simpleDocumentKeys = ['documentId', 'documentTitle', 'documentSections', 'sectionTitles'];
 
 type DocumentDescriptor = {
-  id: DocumentId,
-  title: string,
+  documentId: DocumentId,
+  documentTitle: string,
   documentSections: SectionId[],
   sectionTitles: { [key:SectionId]: string },
   storageLocations: string[],
@@ -75,7 +73,7 @@ const getStoragePairs = flow(
 );
 
 const getDescriptorForDocument = (document: Document, patch: Patch) =>
-  get(['documentDescriptors', document.id], patch);
+  get(['documentDescriptors', document.documentId], patch);
 
 const createUpdateDocumentDescriptor: (
   storageOperation: StorageOperation,
@@ -90,14 +88,14 @@ const createUpdateDocumentDescriptor: (
     `${storageLocation.storageKey}/section:${sectionId}`;
 
   const { document } = storageOperation;
-  const existingDocumentDescriptor = get(['documentDescriptors', document.id], patch);
+  const existingDocumentDescriptor = getDescriptorForDocument(document, patch);
 
   const existingStorageMap = getStorageLocationMap(
     get('storageLocations', existingDocumentDescriptor),
     get('documentSections', existingDocumentDescriptor)
   );
 
-  const { id, title, documentSections, sectionTitles } = document;
+  const { documentId, documentTitle, documentSections, sectionTitles } = document;
   const storageLocations = map(sectionId => (
     (sectionId in existingStorageMap)
       ? existingStorageMap[sectionId]
@@ -105,12 +103,12 @@ const createUpdateDocumentDescriptor: (
   ), documentSections);
 
   const newDocumentDescriptor: DocumentDescriptor =
-    { id, title, documentSections, sectionTitles, storageLocations };
+    { documentId, documentTitle, documentSections, sectionTitles, storageLocations };
 
   return flow(
     update('storageLocations', append(storageLocation)),
     set(['objToSet', storageLocation.storageKey], newDocumentDescriptor),
-    set(['documentDescriptors', document.id], newDocumentDescriptor),
+    set(['documentDescriptors', document.documentId], newDocumentDescriptor),
   )(patch);
 });
 
@@ -150,7 +148,7 @@ const saveSections: (
 
   const storagePairs = map(over([
     propertyOf(sectionStorageMap),
-    flow(propertyOf(sectionTextInputs), JSON.stringify),
+    propertyOf(sectionTextInputs),
   ]), documentSections);
   const storageObj = fromPairs(storagePairs);
 
@@ -207,8 +205,8 @@ const applyCreateDocumentPatch = (
 ): Patch => {
   const getDocumentStorageKey = (documentId: DocumentId) => `document:${documentId}`;
 
-  const { id, documentSections } = storageOperation.document;
-  const storageLocation = { type: STORAGE_LOCAL, storageKey: getDocumentStorageKey(id) };
+  const { documentId, documentSections } = storageOperation.document;
+  const storageLocation = { type: STORAGE_LOCAL, storageKey: getDocumentStorageKey(documentId) };
 
   return flow(
     createUpdateDocumentDescriptor(storageLocation, storageOperation),
@@ -220,7 +218,7 @@ const applySavePatch = (
   patch: Patch,
   storageOperation: StorageOperation
 ): Patch => {
-  if (!has(['documentDescriptors', storageOperation.document.id], patch)) {
+  if (!getDescriptorForDocument(storageOperation.document, patch)) {
     return applyCreateDocumentPatch(patch, storageOperation);
   }
   return flow(
@@ -244,14 +242,15 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
 
     if (!documentDescriptor) throw new Error('Failed to load document');
 
-    const { id, title, documentSections, sectionTitles, storageLocations } = documentDescriptor;
+    const { documentId, documentTitle, documentSections, sectionTitles, storageLocations } =
+      documentDescriptor;
 
     const sectionTextInputPairs = await storage.getItems(storageLocations);
     // Get correct ids
     const sectionTextInputValues = map(pair => pair[1], sectionTextInputPairs);
     const sectionTextInputs = fromPairs(zip(documentSections, sectionTextInputValues));
 
-    return { id, title, documentSections, sectionTitles, sectionTextInputs };
+    return { documentId, documentTitle, documentSections, sectionTitles, sectionTextInputs };
   };
 
   const updateStore = async (storageOperations: StorageOperation[]): LocalStorageLocation[] => {
@@ -264,7 +263,7 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
     const documentDescriptorMap = fromPairs(documentDescriptorPairs);
 
     const documents = map('document', storageOperations);
-    const documentIds = map('id', documents);
+    const documentIds = map('documentId', documents);
 
     const documentDescriptors = flow(
       map(documentId => [documentId, documentDescriptorMap(documentId)]),
@@ -294,6 +293,8 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
 
   return {
     type: 'local',
+    delay: 1000,
+    maxWait: 2000,
     loadDocument,
     updateStore,
   };
