@@ -5,11 +5,10 @@ import {
   spread,
 } from 'lodash/fp';
 import uuid from 'uuid';
-import {
-  getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE, STORAGE_LOCAL,
-} from '../util';
-import type { PromiseStorage, Document, StorageInterface, LocalStorageLocation } from '../util'; // eslint-disable-line
-import type { SectionId, StorageOperation } from '../../types';
+import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE, STORAGE_LOCAL } from '../../types';
+import type { // eslint-disable-line
+  SectionId, StorageOperation, PromiseStorage, Document, StorageInterface, LocalStorageLocation,
+} from '../../types';
 
 
 /*
@@ -150,7 +149,7 @@ const storageModes = {
   [STORAGE_ACTION_REMOVE]: applyRemovePatch,
 };
 
-export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface => {
+export default (storage: PromiseStorage): StorageInterface => {
   const loadDocument = async (storageLocation: LocalStorageLocation): Document => {
     const sectionPairs = await storage.getItems(storageLocation.sectionStorageKeys);
     // Get correct ids

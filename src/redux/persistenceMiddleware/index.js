@@ -5,13 +5,13 @@ import {
   overEvery, has,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
-import { getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../util';
+import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
 import { mergeState, setDocuments, setDocument } from '../index';
+import { getPromiseStorage } from './promiseStorage';
 import asyncStorageImplementation from './asyncStorageImplementation';
 import type { // eslint-disable-line
-  PromiseStorage, Document, StorageType, StorageAction, StorageOperation,
-} from '../util';
-import type { State, DocumentId } from '../../types';
+  State, DocumentId, Document, StorageType, StorageAction, StorageOperation,
+} from '../../types';
 
 /*
 This handles both saving the documents records (only the ids, storage locations, and titles) to the
@@ -160,7 +160,7 @@ const getChangedDocumentsForStorageType = (
 };
 
 export default (
-  storage: PromiseStorage = getPromiseStorage(),
+  storage = getPromiseStorage(),
   storageImplementations = [asyncStorageImplementation(storage)]
 ): any => ({ getState, dispatch }) => {
   const storages = keyBy('type', storageImplementations);

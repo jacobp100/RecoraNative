@@ -1,7 +1,7 @@
 // @flow
 import {
   map, findIndex, pullAt, concat, first, keys, getOr, forEach, isEmpty, compact, reduce, flow,
-  mapValues,
+  mapValues, filter, includes,
 } from 'lodash/fp';
 import Recora from 'recora';
 import type { SectionId } from '../../types';
@@ -35,6 +35,10 @@ const getStateForRecalculation = (
   previousResults: [],
   results: [],
 });
+
+const typesToSkipInTotal = [
+  'NODE_ASSIGNMENT',
+];
 
 export default ({
   requestIdleCallback = global.requestAnimationFrame,
@@ -137,6 +141,7 @@ export default ({
     const total = flow(
       map('value'),
       compact,
+      filter(value => includes(value.type, typesToSkipInTotal)),
       ([head, ...tail]) => reduce((left, right) => ({
         type: 'NODE_FUNCTION',
         name: 'add',

@@ -1,6 +1,6 @@
 // @flow
 import React, { Component } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableHighlight, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableHighlight, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { getOr } from 'lodash/fp';

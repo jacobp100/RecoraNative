@@ -6,8 +6,9 @@ import {
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import { append } from '../util';
-import type { StorageLocation, Document } from '../util'; // eslint-disable-line
-import type { State, SectionId, DocumentId, RecoraResult } from '../types';
+import type {
+  StorageLocation, Document, State, SectionId, DocumentId, RecoraResult,
+} from '../types';
 
 
 const defaultState: State = {

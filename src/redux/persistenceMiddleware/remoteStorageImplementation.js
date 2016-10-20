@@ -1,8 +1,8 @@
 // @flow
 import { map, reduce, startsWith, update, set, flow, trim, isEmpty, filter } from 'lodash/fp';
 import { append } from '../../util';
-import { STORAGE_ACTION_SAVE } from '../util';
-import type { Document, Section, StorageInterface, RemoteStorageLocation } from '../util'; // eslint-disable-line
+import { STORAGE_ACTION_SAVE } from '../../types';
+import type { Document, Section, StorageInterface, RemoteStorageLocation } from '../../types'; // eslint-disable-line
 
 
 const sectionToString = (section: Section) => {

@@ -1,10 +1,30 @@
 // @flow
-import { concat, forEach, isEqual } from 'lodash/fp';
-import type { State } from '../../types';
-import { getAddedChangedRemovedSectionItems } from '../util';
+import { concat, forEach, isEqual, keys, difference, intersection, reject } from 'lodash/fp';
 import getDefaultBatchImpl from './batchImplementation';
 import { setSectionResult } from '../index';
+import type { State, SectionId } from '../../types';
 
+
+type Items = { [key:SectionId]: any };
+const getAddedChangedRemovedSectionItems = (nextItems: Items, previousItems: Items) => {
+  if (previousItems === nextItems) {
+    return { added: [], removed: [], changed: [] };
+  }
+
+  const previousSectionIds = keys(previousItems);
+  const nextSectionIds = keys(nextItems);
+
+  const removed = difference(previousSectionIds, nextSectionIds);
+
+  const added = difference(nextSectionIds, previousSectionIds);
+  const itemsThatMayHaveChanged = intersection(previousSectionIds, nextSectionIds);
+  const changed = reject(sectionId => isEqual(
+      previousItems[sectionId],
+      nextItems[sectionId]
+  ), itemsThatMayHaveChanged);
+
+  return { added, removed, changed };
+};
 
 const middleware = (
   batchImplementation = getDefaultBatchImpl()

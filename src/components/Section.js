@@ -5,7 +5,6 @@ import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
 import EntryStackView from './EntryStackView';
 import EntryTextView from './EntryTextView';
-import TotalRow from './TotalRow';
 
 const styles = StyleSheet.create({
   title: {
