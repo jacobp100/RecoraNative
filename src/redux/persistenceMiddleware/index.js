@@ -1,10 +1,10 @@
 // @flow
 import {
-  isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, propertyOf,
-  forEach, mapValues, curry, keys, keyBy, map, concat, fromPairs, zip, without, includes,
+  __, isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, propertyOf,
+  forEach, mapValues, curry, keys, keyBy, map, concat, fromPairs, zip, flow, assign, pick, omit,
+  overEvery, has,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
-import { append } from '../../util';
 import { getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../util';
 import { mergeState, setDocuments, setDocument } from '../index';
 import asyncStorageImplementation from './asyncStorageImplementation';
@@ -40,21 +40,27 @@ const LOAD_DOCUMENT = 'persistence-middleware:LOAD_DOCUMENT';
 const documentsStorageKey = 'documents';
 const keysToCheckForSave = ['documents', 'documentStorageLocations', 'documentTitles'];
 
+// TODO: Disable on prod
+const getOrThrow = (path, source) => {
+  if (!has(path, source)) throw new Error(`Expected ${path} to exist in ${source}`);
+  return get(path, source);
+};
+
 const documentsListNeedsUpdating = (nextState, previousState) => (
   some(key => !isEqual(nextState[key], previousState[key]), keysToCheckForSave)
 );
 
-const getDocumentFromState = (documentId: DocumentId, state: State): ?Document => (
-  includes(documentId, state.documents) ? {
-    id: documentId,
-    title: state.documentTitles[documentId],
-    sections: map(sectionId => ({
-      id: sectionId,
-      title: get(['sectionTitles', sectionId], state),
-      textInputs: get(['sectionTextInputs', sectionId], state),
-    }), state.documentSections[documentId]),
-  } : null
-);
+// The document *should* be loaded to call this: deliberately use stuff that will throw if not
+// the case
+const getDocumentFromState = curry((state: State, documentId: DocumentId): ?Document => ({
+  id: documentId,
+  title: state.documentTitles[documentId],
+  sections: map(sectionId => ({
+    id: sectionId,
+    title: getOrThrow(['sectionTitles', sectionId], state),
+    textInputs: getOrThrow(['sectionTextInputs', sectionId], state),
+  }), state.documentSections[documentId]),
+}));
 
 // TODO: if a storage location changes by type, persist; change in any other way, ignore
 const documentKeysToPersist = ['documentTitles', 'documentSections'];
@@ -62,13 +68,25 @@ const sectionKeysToPersist = ['sectionTitles', 'sectionTextInputs'];
 
 const documentsForType = (state, storageType) => filter(documentId => (
   get(['documentStorageLocations', documentId, 'type'], state) === storageType
-), state.decuments);
+), state.documents);
 
-const addedDocuments = (nextDocuments, previousDocuments) =>
-  difference(nextDocuments, previousDocuments);
+const addedDocuments = (
+  nextState,
+  previousState,
+  nextDocuments,
+  previousDocuments
+) => {
+  filter(documentId => (
+    documentId in previousState.documentStorageLocations
+  ), difference(nextDocuments, previousDocuments));
+};
 
-const removedDocuments = (nextDocuments, previousDocuments) =>
-  difference(nextDocuments, previousDocuments);
+const removedDocuments = (
+  nextState,
+  previousState,
+  nextDocuments,
+  previousDocuments
+) => difference(nextDocuments, previousDocuments);
 
 const changedDocuments = (
   nextState,
@@ -96,28 +114,35 @@ const changedDocuments = (
   return changed;
 };
 
-const hasDocumentChangesForStorageType = (
-  nextState: State,
-  previousState: State,
-) => (storageType: StorageType) => {
+const noChangeInDocuments = overEvery([
+  flow(addedDocuments, isEmpty),
+  flow(removedDocuments, isEmpty),
+  flow(changedDocuments, isEmpty),
+]);
+
+const addedRemovedChangedArgsForType = (nextState, previousState, storageType) => {
   const previousDocumentsForStorageType =
-    documentsForType(storageType, previousState.decuments);
+    documentsForType(storageType, previousState.documents);
   const nextDocumentsForStorageType =
-    documentsForType(storageType, nextState.decuments);
+    documentsForType(storageType, nextState.documents);
 
-  const added = addedDocuments(nextDocumentsForStorageType, previousDocumentsForStorageType);
-  if (!isEmpty(added)) return true;
-
-  const removed = removedDocuments(nextDocumentsForStorageType, previousDocumentsForStorageType);
-  if (!isEmpty(removed)) return true;
-
-  const changed = changedDocuments(
+  const args = [
     nextState,
     previousState,
     nextDocumentsForStorageType,
     previousDocumentsForStorageType,
-  );
-  return !isEmpty(changed);
+  ];
+
+  return args;
+};
+
+const hasDocumentChangesForStorageType = (
+  nextState: State,
+  previousState: State,
+) => (storageType: StorageType) => {
+  const args = addedRemovedChangedArgsForType(nextState, previousState, storageType);
+
+  return !noChangeInDocuments(...args);
 };
 
 const getChangedDocumentsForStorageType = (
@@ -125,20 +150,12 @@ const getChangedDocumentsForStorageType = (
   previousState: State,
   storageType: StorageType,
 ) => {
-  const previousDocumentsForStorageType =
-    documentsForType(storageType, previousState.decuments);
-  const nextDocumentsForStorageType =
-    documentsForType(storageType, nextState.decuments);
+  const args = addedRemovedChangedArgsForType(nextState, previousState, storageType);
 
   return {
-    added: addedDocuments(nextDocumentsForStorageType, previousDocumentsForStorageType),
-    removed: removedDocuments(nextDocumentsForStorageType, previousDocumentsForStorageType),
-    changed: changedDocuments(
-      nextState,
-      previousState,
-      nextDocumentsForStorageType,
-      previousDocumentsForStorageType,
-    ),
+    added: addedDocuments(...args),
+    removed: removedDocuments(...args),
+    changed: changedDocuments(...args),
   };
 };
 
@@ -152,11 +169,12 @@ export default (
   let storagePromise = Promise.resolve();
   const promisesPerStorageType = {};
 
-  const lastStatePerStorageType = {};
+  // Used by storage implementations to work out *how* a document changed
+  let lastDocumentById = {};
+  // Used by storage implementation to attempt recovery
   const lastRejectionPerStorageType = {};
-  // When a document is loaded, it is put in the state, so sections and stuff are created.
-  // This normally triggers a save, when it shouldn't, so use this as a workaround.
-  const loadedDocumentsPerStorageType = {};
+  // Used by this middleware to work out *what* documents changed
+  const lastStatePerStorageType = {};
 
   const queueStorageOperation = callback => {
     storagePromise = storagePromise.then(callback, () => {});
@@ -172,19 +190,13 @@ export default (
   const doLoadDocument = async (documentId) => {
     const storageLocation = get(['documentStorageLocations', documentId], getState());
     const storageType = get('type', storageLocation);
-    const storageImplementation = storages[storageType];
-
-    if (!storageImplementation) {
-      throw new Error(`Cannot load document from ${storageType}`);
-    }
+    const storageImplementation = getOrThrow(storageType, storages);
 
     const document = await queueImplementationStorageOperation(storageType, () => (
       storageImplementation.loadDocument(storageLocation)
     ));
 
-    loadedDocumentsPerStorageType[storageType] =
-      append(document.id, loadedDocumentsPerStorageType[storageType]);
-
+    lastDocumentById[documentId] = document;
     dispatch(setDocument(document));
 
     return document;
@@ -210,21 +222,20 @@ export default (
   const doUpdateStorageImplementation = async (storageType) => {
     const lastState = lastStatePerStorageType[storageType];
     const currentState = getState();
-    const { documents } = currentState;
 
-    const addedChangedRemoved = getChangedDocumentsForStorageType(
+    const { added, changed, removed } = getChangedDocumentsForStorageType(
       lastState,
       currentState,
       storageType
     );
 
-    const onlyDocumentsInState = intersection(documents);
-    const { added, changed, removed } = mapValues(onlyDocumentsInState, addedChangedRemoved);
+    const addedChanged = concat(added, changed);
 
-    const addedChanged = without(
-      loadedDocumentsPerStorageType[storageType] || [],
-      concat(added, changed)
-    );
+    const currentDocumentById = flow(
+      map(getDocumentFromState(currentState)),
+      zip(__, addedChanged),
+      fromPairs
+    )(addedChanged);
 
     const getStorageOperation = curry((
       action: StorageAction,
@@ -232,8 +243,10 @@ export default (
     ): StorageOperation => ({
       action,
       storageLocation: get(['documentStorageLocations', documentId], currentState),
-      document: getDocumentFromState(documentId, currentState),
-      previousDocument: getDocumentFromState(documentId, lastState),
+      document: action !== STORAGE_ACTION_REMOVE
+        ? getOrThrow(documentId, currentDocumentById)
+        : getOrThrow(documentId, lastDocumentById),
+      previousDocument: getOrThrow(documentId, lastDocumentById),
       lastRejection: lastRejectionPerStorageType[storageType],
     }));
 
@@ -247,9 +260,13 @@ export default (
         ? await storages[storageType].updateStore(storageOperations)
         : null;
 
+      lastDocumentById = flow(
+        omit(removed),
+        assign(pick(currentDocumentById, addedChanged))
+      )(lastDocumentById);
+
       lastStatePerStorageType[storageType] = currentState;
       lastRejectionPerStorageType[storageType] = null;
-      loadedDocumentsPerStorageType[storageType] = [];
 
       if (storageLocations) {
         const documents = map('document', storageOperations);
@@ -276,9 +293,7 @@ export default (
   ), storages);
 
   const queueUpdateStorageImplementation = previousState => storageType => {
-    if (!lastStatePerStorageType[storageType]) {
-      lastStatePerStorageType[storageType] = previousState;
-    }
+    if (!lastStatePerStorageType[storageType]) lastStatePerStorageType[storageType] = previousState;
 
     // Can we set a list of all storageTypes that will be updated so that between now and until the
     // debounce callback is called, we don't bother checking for the document changes for this type

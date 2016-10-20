@@ -71,8 +71,8 @@ export const STORAGE_ACTION_REMOVE: StorageAction = 'STORAGE_ACTION_REMOVE';
 export type StorageOperotaion = {
   action: StorageAction,
   storageLocation: StorageLocation,
-  document: Document,
-  previousDocument: ?Document,
+  document: Document, // If STORAGE_ACTION_REMOVE, document === previousDocument
+  previousDocument: Document,
   lastRejection: any,
 };
 export type StorageInterface = {

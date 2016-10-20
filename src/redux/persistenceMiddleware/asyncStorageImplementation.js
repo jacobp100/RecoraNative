@@ -103,14 +103,10 @@ const removeSections: (
 
 const sectionKeysToCheck = ['title', 'textInputs'];
 
-const calculateMinimumSaveRemoveSections: (
-  storageOperation: StorageOperation,
-  sectionStorageKeyMap: Object,
+const applySavePatch = (
   patch: Patch,
-) => Patch = curry((
   storageOperation: StorageOperation,
-  sectionStorageKeyMap: Object,
-  patch: Patch,
+  sectionStorageKeyMap: Object
 ): Patch => {
   const { document, previousDocument } = storageOperation;
   const { sections } = document;
@@ -137,17 +133,6 @@ const calculateMinimumSaveRemoveSections: (
     saveSections(storageOperation, sectionStorageKeyMap, addedChanged),
     removeSections(storageOperation, sectionStorageKeyMap, removed)
   )(patch);
-});
-
-const applySavePatch = (
-  patch: Patch,
-  storageOperation: StorageOperation,
-  sectionStorageKeyMap: Object
-): Patch => {
-  if (!storageOperation.previousDocument) {
-    console.warn('I did not think this could happen'); // eslint-disable-line
-  }
-  return calculateMinimumSaveRemoveSections(storageOperation, sectionStorageKeyMap, patch);
 };
 
 const applyRemovePatch = (
