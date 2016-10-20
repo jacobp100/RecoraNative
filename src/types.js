@@ -37,7 +37,7 @@ export type StorageOperotaion = {
   action: StorageAction,
   storageLocation: StorageLocation,
   document: Document, // If STORAGE_ACTION_REMOVE, document === previousDocument
-  previousDocument: Document,
+  previousDocument: ?Document,
   lastRejection: any,
 };
 export type StorageInterface = {

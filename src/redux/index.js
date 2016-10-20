@@ -6,7 +6,8 @@ import {
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import { append } from '../util';
-import type {
+import { STORAGE_LOCAL } from '../types';
+import type { // eslint-disable-line
   StorageLocation, Document, State, SectionId, DocumentId, RecoraResult,
 } from '../types';
 
@@ -104,6 +105,7 @@ const doAddSection = curry((documentId, state) => {
       `Section ${state.documentSections[documentId].length}`,
       state
     ),
+    set(['sectionTextInputs', sectionId], [])
   )(state);
 });
 
@@ -148,11 +150,16 @@ export default (state: State = defaultState, action: Object): State => {
       )(state);
     }
     case ADD_DOCUMENT: {
-      const id = newId('document', state);
+      const id = uniqueId();
+      const title = 'New Document';
       return flow(
         update('documents', concat(id)),
-        set(['documentTitles', id], 'New Document'),
-        set(['documentStorageLocations', id], { type: 'localStorage', storageKey: `document:${id}` }),
+        set(['documentTitles', id], title),
+        set(['documentStorageLocations', id], {
+          title,
+          type: STORAGE_LOCAL,
+          sectionStorageKeys: [],
+        }),
         doAddSection(id)
       )(state);
     }

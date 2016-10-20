@@ -34,16 +34,18 @@ type Patch = {
 const generateNewSectionId = () => uuid.v4();
 
 const getSectionStorageKeyMap = (storageOperation: StorageOperation) => {
-  const previousSectionIds = map('id', storageOperation.previousDocument.sections);
+  const previousSectionIds = map('id', get(['previousDocument', 'sections'], storageOperation));
   const previousSectionStorageKeys = storageOperation.storageLocation.sectionStorageKeys;
   const previousSectionStorageKeyMap =
     fromPairs(zip(previousSectionIds, previousSectionStorageKeys));
 
-  const nextSectionStorageKey = map(sectionId => (
+  const sectionIds = map('id', get(['document', 'sections'], storageOperation));
+  const nextSectionStorageValues = map(sectionId => (
     previousSectionStorageKeyMap[sectionId] || generateNewSectionId()
-  ), storageOperation.document.sections);
+  ), sectionIds);
+  const nextSectionStorageKeyMap = fromPairs(zip(sectionIds, nextSectionStorageValues));
 
-  return assign(previousSectionStorageKeyMap, nextSectionStorageKey);
+  return assign(previousSectionStorageKeyMap, nextSectionStorageKeyMap);
 };
 
 const getStorageLocation = (storageOperation, sectionStorageKeyMap): LocalStorageLocation => ({
@@ -110,23 +112,32 @@ const applySavePatch = (
   const { document, previousDocument } = storageOperation;
   const { sections } = document;
   const sectionIds = map('id', sections);
-  const previousSectionIds = map('id', get('sections', previousDocument));
 
-  const sectionsById = keyBy('id', sections);
-  const previousSectionsById = keyBy('id', previousDocument.sections);
+  let addedChanged;
+  let removed;
 
-  const added = difference(sectionIds, previousSectionIds);
-  const removed = difference(previousSectionIds, sectionIds);
+  if (previousDocument) {
+    const previousSectionIds = map('id', get('sections', previousDocument));
 
-  const possiblyChanged = intersection(sectionIds, previousSectionIds);
+    const sectionsById = keyBy('id', sections);
+    const previousSectionsById = keyBy('id', previousDocument.sections);
 
-  const sectionChanged = sectionId => !every(key => (
-    isEqual(get([sectionId, key], sectionsById), get([sectionId, key], previousSectionsById))
-  ), sectionKeysToCheck);
+    const added = difference(sectionIds, previousSectionIds);
+    removed = difference(previousSectionIds, sectionIds);
 
-  const changed = filter(sectionChanged, possiblyChanged);
+    const possiblyChanged = intersection(sectionIds, previousSectionIds);
 
-  const addedChanged = concat(added, changed);
+    const sectionChanged = sectionId => !every(key => (
+      isEqual(get([sectionId, key], sectionsById), get([sectionId, key], previousSectionsById))
+    ), sectionKeysToCheck);
+
+    const changed = filter(sectionChanged, possiblyChanged);
+
+    addedChanged = concat(added, changed);
+  } else {
+    addedChanged = sectionIds;
+    removed = [];
+  }
 
   return flow(
     saveSections(storageOperation, sectionStorageKeyMap, addedChanged),
@@ -168,7 +179,7 @@ export default (storage: PromiseStorage): StorageInterface => {
     const storageOpsSectionStorageKeys = zip(storageOperations, sectionStorageKeyMaps);
 
     const patch: Patch = reduce((patch, [storageOperation, sectionStorageKeyMap]) => (
-      storageModes[storageOperation.type](patch, storageOperation, sectionStorageKeyMap)
+      storageModes[storageOperation.action](patch, storageOperation, sectionStorageKeyMap)
     ), ({
       keysToRemove: [],
       objToSet: {},

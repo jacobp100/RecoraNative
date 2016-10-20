@@ -42,7 +42,11 @@ const keysToCheckForSave = ['documents', 'documentStorageLocations', 'documentTi
 
 // TODO: Disable on prod
 const getOrThrow = (path, source) => {
-  if (!has(path, source)) throw new Error(`Expected ${path} to exist in ${source}`);
+  if (!has(path, source)) {
+    const message = `Expected ${path} to exist in ${JSON.stringify(source)}`;
+    console.error(message); // eslint-disable-line
+    throw new Error(message);
+  }
   return get(path, source);
 };
 
@@ -76,9 +80,8 @@ const addedDocuments = (
   nextDocuments,
   previousDocuments
 ) => {
-  filter(documentId => (
-    documentId in previousState.documentStorageLocations
-  ), difference(nextDocuments, previousDocuments));
+  const documentWasAdded = documentId => !(documentId in previousState.documentStorageLocations);
+  return filter(documentWasAdded, difference(nextDocuments, previousDocuments));
 };
 
 const removedDocuments = (
@@ -86,7 +89,7 @@ const removedDocuments = (
   previousState,
   nextDocuments,
   previousDocuments
-) => difference(nextDocuments, previousDocuments);
+) => difference(previousDocuments, nextDocuments);
 
 const changedDocuments = (
   nextState,
@@ -122,9 +125,9 @@ const noChangeInDocuments = overEvery([
 
 const addedRemovedChangedArgsForType = (nextState, previousState, storageType) => {
   const previousDocumentsForStorageType =
-    documentsForType(storageType, previousState.documents);
+    documentsForType(previousState, storageType);
   const nextDocumentsForStorageType =
-    documentsForType(storageType, nextState.documents);
+    documentsForType(nextState, storageType);
 
   const args = [
     nextState,
@@ -224,8 +227,8 @@ export default (
     const currentState = getState();
 
     const { added, changed, removed } = getChangedDocumentsForStorageType(
-      lastState,
       currentState,
+      lastState,
       storageType
     );
 
@@ -233,7 +236,7 @@ export default (
 
     const currentDocumentById = flow(
       map(getDocumentFromState(currentState)),
-      zip(__, addedChanged),
+      zip(addedChanged),
       fromPairs
     )(addedChanged);
 
@@ -246,7 +249,7 @@ export default (
       document: action !== STORAGE_ACTION_REMOVE
         ? getOrThrow(documentId, currentDocumentById)
         : getOrThrow(documentId, lastDocumentById),
-      previousDocument: getOrThrow(documentId, lastDocumentById),
+      previousDocument: lastDocumentById[documentId],
       lastRejection: lastRejectionPerStorageType[storageType],
     }));
 
@@ -262,7 +265,7 @@ export default (
 
       lastDocumentById = flow(
         omit(removed),
-        assign(pick(currentDocumentById, addedChanged))
+        assign(__, pick(addedChanged, currentDocumentById))
       )(lastDocumentById);
 
       lastStatePerStorageType[storageType] = currentState;

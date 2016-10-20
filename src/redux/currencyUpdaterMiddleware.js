@@ -25,9 +25,11 @@ export default (AppState) => ({ dispatch }) => {
     dispatch(setCustomUnits(customUnits));
   };
 
-  AppState.addEventListener('change', appState => {
-    if (appState === 'active') updateCurrencies();
-  });
+  if (AppState) {
+    AppState.addEventListener('change', appState => {
+      if (appState === 'active') updateCurrencies();
+    });
+  }
 
   updateCurrencies();
 
