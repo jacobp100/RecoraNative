@@ -6,7 +6,7 @@ import {
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
-import { mergeState, setDocuments, setDocument } from '../index';
+import { updateDocumentStorageLocations, setDocuments, setDocument } from '../index';
 import { getPromiseStorage } from './promiseStorage';
 import asyncStorageImplementation from './asyncStorageImplementation';
 import type { // eslint-disable-line
@@ -277,10 +277,8 @@ export default (
         const documents = map('document', storageOperations);
         const documentIds = map('id', documents);
 
-        const storageLocationPatch = fromPairs(zip(documentIds, storageLocations));
-        const patch = { documentStorageLocations: storageLocationPatch };
-
-        dispatch(mergeState(patch));
+        const newStorageLocations = fromPairs(zip(documentIds, storageLocations));
+        dispatch(updateDocumentStorageLocations(newStorageLocations));
 
         if (documentsListNeedsUpdating(getState(), currentState)) await doSaveDocumentsList();
       }
