@@ -1,68 +1,53 @@
 // @flow
-import { map, reduce, startsWith, update, set, flow, uniqueId, trim, last, filter } from 'lodash/fp';
+import { map, reduce, startsWith, update, set, flow, trim, isEmpty, filter } from 'lodash/fp';
 import { append } from '../../util';
 import { STORAGE_ACTION_SAVE } from '../util';
-import type { Document, StorageOperation, StorageInterface, RemoteStorageLocation } from '../util'; // eslint-disable-line
-import type { DocumentId } from '../../types';
+import type { Document, Section, StorageInterface, RemoteStorageLocation } from '../util'; // eslint-disable-line
 
-const createDocumentId = () =>
-  `document-${uniqueId()}`;
 
-const createSectionId = (documentId: DocumentId) =>
-  `document:${documentId}/section:section-${uniqueId()}`;
-
-const sectionToString = (
-  sectionTitle: string,
-  textInputs: string,
-) => {
-  const titleString = `## ${sectionTitle}\n`;
-  const textInputStrings = map(input => `> ${input}\n`, textInputs);
+const sectionToString = (section: Section) => {
+  const titleString = `## ${section.title}\n`;
+  const textInputStrings = map(input => `> ${input}\n`, section.textInputs);
   return [titleString, ...textInputStrings].join('');
 };
 
 const documentToString = (document: Document) => {
-  const titleString = `# ${document.documentTitle}\n`;
-  const sectionStrings = map(sectionId => sectionToString(
-    document.sectionTitles[sectionId],
-    document.sectionTextInputs[sectionId]
-  ), document.documentSections);
+  const titleString = `# ${document.title}\n`;
+  const sectionStrings = map(sectionToString, document.sections);
 
   [titleString, ...sectionStrings].join('\n');
 };
 
-const parseDocumentString = (documentId: DocumentId, string: string) => reduce((accum, line) => {
+const parseDocumentString = (string: string) => reduce((document, line) => {
   if (startsWith('##', line)) {
-    const sectionId = createSectionId(documentId);
-    const sectionTitle = trim(line.substring(2));
+    const title = trim(line.substring(2));
+    const section: Section = {
+      id: null,
+      title,
+      textInputs: [],
+    };
 
-    return flow(
-      update('documentSections', append(sectionId)),
-      set(['sectionTitles', sectionId], sectionTitle)
-    )(accum);
-  } else if (startsWith('>', line)) {
-    const sectionId = last(accum.documentSections);
-    if (!sectionId) return accum;
-
-    const textInput = trim(line.substring(1));
-    return update(['sectionTextInputs', sectionId], append(textInput), accum);
+    return update('sections', append(section), document);
   } else if (startsWith('#', line)) {
-    const documentTitle = trim(line.substring(1));
-    return set('documentTitle', documentTitle, accum);
+    const title = trim(line.substring(1));
+    return set('title', title, document);
+  } if (startsWith('>', line) && !isEmpty(document.sections)) {
+    const lastSectionIndex = document.sections.length - 1;
+    const textInput = trim(line.substring(1));
+
+    return update(['sections', lastSectionIndex, 'textInputs'], append(textInput), document);
   }
-  return accum;
+  return document;
 }, {
-  documentId,
-  documentTitle: '',
-  documentSections: [],
-  sectionTitles: {},
-  sectionTextInputs: {},
+  id: null,
+  title: '',
+  sections: [],
 }, string.split('\n'));
 
 export default (type, remote): StorageInterface => {
   const loadDocument = async (storageLocation: RemoteStorageLocation) => {
     const contents = await remote.get(storageLocation.userId, storageLocation.path);
-    const documentId = createDocumentId();
-    const document: Document = parseDocumentString(documentId, contents);
+    const document: Document = parseDocumentString(contents);
     return document;
   };
 

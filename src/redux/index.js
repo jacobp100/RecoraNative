@@ -1,11 +1,12 @@
 // @flow
 import {
-  get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
+  __, get, set, unset, concat, update, mapValues, without, reduce, curry, flow, values, flatten,
   over, uniqueId, includes, isNull, propertyOf, map, intersection, sample, omit, mergeWith, omitBy,
-  isPlainObject,
+  isPlainObject, fromPairs, zip, assign,
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import { append } from '../util';
+import type { StorageLocation, Document } from '../util'; // eslint-disable-line
 import type { State, SectionId, DocumentId, RecoraResult } from '../types';
 
 
@@ -21,9 +22,12 @@ const defaultState: State = {
   quickCalculationInput: '',
   quickCalculationResult: { text: '' },
   customUnits: {},
+  loadedDocuments: [],
 };
 
 const MERGE_STATE = 'recora:MERGE_STATE';
+const SET_DOCUMENTS = 'recora:SET_DOCUMENTS';
+const SET_DOCUMENT = 'recora:SET_DOCUMENT';
 const ADD_DOCUMENT = 'recora:ADD_DOCUMENT';
 const SET_DOCUMENT_TITLE = 'recora:SET_DOCUMENT_TITLE';
 const REORDER_DOCUMENTS = 'recora:REORDER_DOCUMENTS';
@@ -114,6 +118,34 @@ export default (state: State = defaultState, action: Object): State => {
   switch (action.type) {
     case MERGE_STATE:
       return mergeWith(mergeImplementation, state, action.state);
+    case SET_DOCUMENTS: {
+      const documentIds = map(() => uniqueId(), action.documents);
+      const documentStorageLocations = fromPairs(zip(documentIds, action.documents));
+      const documentTitles = mapValues('title', documentStorageLocations);
+      return flow(
+        set('documents', documentIds),
+        update('documentStorageLocations', assign(__, documentStorageLocations)),
+        update('documentTitles', assign(__, documentTitles))
+      )(state);
+    }
+    case SET_DOCUMENT: {
+      const { documentId, document } = action;
+
+      if (includes(documentId, state.loadedDocuments)) return state;
+
+      const { title, sections } = document;
+      const sectionIds = map(() => uniqueId(), sections);
+      const sectionTitles = fromPairs(zip(sectionIds, sections.titles));
+      const sectionTextInputs = fromPairs(zip(sectionIds, sections.textInputs));
+
+      return flow(
+        update('loadedDocuments', append(documentId)),
+        set(['documentTitles', documentId], title),
+        set(['documentSections', documentId], sectionIds),
+        update('sectionTitles', assign(__, sectionTitles)),
+        update('sectionTextInputs', assign(__, sectionTextInputs))
+      )(state);
+    }
     case ADD_DOCUMENT: {
       const id = newId('document', state);
       return flow(
@@ -189,6 +221,10 @@ export default (state: State = defaultState, action: Object): State => {
 /* eslint-disable max-len */
 export const mergeState = (state: Object) =>
   ({ type: MERGE_STATE, state });
+export const setDocuments = (documents: StorageLocation[]) =>
+  ({ type: SET_DOCUMENTS, documents });
+export const setDocument = (documentId: DocumentId, document: Document[]) =>
+  ({ type: SET_DOCUMENTS, documentId, document });
 export const addDocument = () =>
   ({ type: ADD_DOCUMENT });
 export const setDocumentTitle = (documentId: DocumentId, title: string) =>

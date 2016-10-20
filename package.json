@@ -13,7 +13,8 @@
     "react-native-linear-gradient": "^1.5.13",
     "react-redux": "^4.4.5",
     "recora": "^0.1.0",
-    "redux": "^3.6.0"
+    "redux": "^3.6.0",
+    "uuid": "^2.0.3"
   },
   "devDependencies": {
     "babel-eslint": "^7.0.0",

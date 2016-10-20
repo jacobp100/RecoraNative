@@ -1,12 +1,12 @@
 // @flow
 import {
-  __, isEqual, some, get, isEmpty, pick, filter, difference, intersection, every, overSome, update,
-  forEach, mapValues, curry, keys, keyBy, map, concat, fromPairs, zip, without, flow, reduce,
+  isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, propertyOf,
+  forEach, mapValues, curry, keys, keyBy, map, concat, fromPairs, zip, without, includes,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { append } from '../../util';
 import { getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../util';
-import { mergeState } from '../index';
+import { mergeState, setDocuments, setDocument } from '../index';
 import asyncStorageImplementation from './asyncStorageImplementation';
 import type { // eslint-disable-line
   PromiseStorage, Document, StorageType, StorageAction, StorageOperation,
@@ -37,31 +37,27 @@ multiple requests happening at a time.
 const LOAD_DOCUMENTS = 'persistence-middleware:LOAD_DOCUMENTS';
 const LOAD_DOCUMENT = 'persistence-middleware:LOAD_DOCUMENT';
 
-const documentsKey = 'documents';
-const keysToSave = ['documents', 'documentStorageLocations', 'documentTitles'];
-// Ensure we don't save extraneous keys for documents that don't exist
-// When deleting a document, the storageLocation is retained for a while
-const savedKeysToFilterByDocument = ['documentStorageLocations', 'documentTitles'];
+const documentsStorageKey = 'documents';
+const keysToCheckForSave = ['documents', 'documentStorageLocations', 'documentTitles'];
 
 const documentsListNeedsUpdating = (nextState, previousState) => (
-  some(key => !isEqual(nextState[key], previousState[key]), keysToSave)
+  some(key => !isEqual(nextState[key], previousState[key]), keysToCheckForSave)
 );
 
-const getPatchForDocument = (document: Document) => ({
-  documentTitles: { [document.documentId]: document.documentTitle },
-  documentSections: { [document.documentId]: document.documentSections },
-  sectionTitles: document.sectionTitles,
-  sectionTextInputs: document.sectionTextInputs,
-});
+const getDocumentFromState = (documentId: DocumentId, state: State): ?Document => (
+  includes(documentId, state.documents) ? {
+    id: documentId,
+    title: state.documentTitles[documentId],
+    sections: map(sectionId => ({
+      id: sectionId,
+      title: get(['sectionTitles', sectionId], state),
+      textInputs: get(['sectionTextInputs', sectionId], state),
+    }), state.documentSections[documentId]),
+  } : null
+);
 
-const getDocumentFromState = (documentId: DocumentId, state: State): Document => ({
-  documentTitle: state.documentTitles[documentId],
-  documentSection: state.documentSections[documentId],
-  sectionTitles: pick(state.documentSections[documentId], state.sectionTitles),
-  sectionTextInputs: pick(state.documentSections[documentId], state.sectionTextInputs),
-});
-
-const documentKeysToPersist = ['documentStorageLocations', 'documentTitles', 'documentSections'];
+// TODO: if a storage location changes by type, persist; change in any other way, ignore
+const documentKeysToPersist = ['documentTitles', 'documentSections'];
 const sectionKeysToPersist = ['sectionTitles', 'sectionTextInputs'];
 
 const documentsForType = (state, storageType) => filter(documentId => (
@@ -82,8 +78,9 @@ const changedDocuments = (
 ) => {
   const possiblyChanged = intersection(nextDocuments, previousDocuments);
 
-  const valuesChangedBetweenStates = (keys, id) => key =>
-    !every(isEqual(nextState[key][id], previousState[key][id]), keys);
+  const valuesChangedBetweenStates = curry((keys, id) => !every(key => (
+    isEqual(get([key, id], nextState), get([key, id], previousState))
+  ), keys));
 
   const documentChanged = valuesChangedBetweenStates(documentKeysToPersist);
   const sectionsChanged = documentId => some(
@@ -188,27 +185,22 @@ export default (
     loadedDocumentsPerStorageType[storageType] =
       append(document.id, loadedDocumentsPerStorageType[storageType]);
 
-    dispatch(mergeState(getPatchForDocument(document)));
+    dispatch(setDocument(document));
 
     return document;
   };
 
   const doLoadDocumentsList = async () => {
-    const savedDocuments = await storage.getItem(documentsKey);
+    const savedDocuments = await storage.getItem(documentsStorageKey);
     if (!savedDocuments) return;
-    const patch = JSON.parse(savedDocuments);
-    dispatch(mergeState(patch));
+    const documentRecords = JSON.parse(savedDocuments);
+    dispatch(setDocuments(documentRecords));
   };
 
   const doSaveDocumentsList = async () => {
-    const documentRecords = flow(
-      pick(keysToSave),
-      reduce((documentRecords, keyToFilter) => (
-        update(keyToFilter, pick(documentRecords.documents), documentRecords)
-      ), __, savedKeysToFilterByDocument)
-    )(getState());
-
-    await storage.setItem(documentsKey, JSON.stringify(documentRecords));
+    const { documents, documentStorageLocations } = getState();
+    const documentRecords = map(propertyOf(documentStorageLocations), documents);
+    await storage.setItem(documentsStorageKey, JSON.stringify(documentRecords));
   };
 
   const queueSaveDocumentsList = debounce(() => {

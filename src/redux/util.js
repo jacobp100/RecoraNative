@@ -50,15 +50,20 @@ export const getPromiseStorage = (): PromiseStorage => ({
 
 export type StorageType = string;
 export const STORAGE_LOCAL: StorageType = 'local';
-export type StorageLocation = { type: StorageType };
-export type LocalStorageLocation = StorageLocation & { storageKey: string };
+export type StorageLocation = { title: string, type: StorageType };
+export type LocalStorageLocation = StorageLocation & { sectionStorageKeys: string[] };
 export type RemoteStorageLocation = StorageLocation & { userId: string, path: string };
+// Section:id and Document:id should only be used for diffing, and nothing else
+// The ids are not persisted between saves
+export type Section = {
+  id: ?SectionId,
+  title: string,
+  textInputs: string[],
+};
 export type Document = {
-  documentId: DocumentId,
-  documentTitle: string,
-  documentSections: SectionId[],
-  sectionTitles: { [key:SectionId]: string[] },
-  sectionTextInputs: { [key:SectionId]: string[] },
+  id: ?DocumentId,
+  title: string,
+  sections: Section,
 };
 export type StorageAction = string;
 export const STORAGE_ACTION_SAVE: StorageAction = 'STORAGE_ACTION_SAVE';

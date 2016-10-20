@@ -1,244 +1,162 @@
 // @flow
 import {
-  __, concat, map, fromPairs, isEmpty, isEqual, compact, zip, some, propertyOf, over, flow, reduce,
-  set, mapValues, toPairs, update, get, curry, assign,
+  __, concat, map, fromPairs, isEmpty, isEqual, compact, zip, propertyOf, over, flow, reduce, pick,
+  mapValues, toPairs, update, get, curry, assign, keyBy, difference, intersection, every, filter,
+  spread,
 } from 'lodash/fp';
+import uuid from 'uuid';
 import {
-  getAddedChangedRemovedSectionItems, getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE,
-  STORAGE_LOCAL,
+  getPromiseStorage, STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE, STORAGE_LOCAL,
 } from '../util';
-import { append } from '../../util';
 import type { PromiseStorage, Document, StorageInterface, LocalStorageLocation } from '../util'; // eslint-disable-line
-import type { DocumentId, SectionId, StorageOperation } from '../../types';
+import type { SectionId, StorageOperation } from '../../types';
 
 
 /*
-A document is saved as,
+When saving the document lists, we save the document title, and a LocalStorageLocation object.
+The LocalStorageLocation contains a key, sectionStorageKeys, which is pointers to the locations of
+the sections local storage.
 
-key: 'document:document-1'
-value: {
-  documentId: 'document-1',
-  documentTitle: 'Document',
-  documentSections: ['section-1', 'section-2'],
-  sectionTitles: ['Section 1', 'Section 2'],
-  storageLocations: [
-    'document:document-1/section:section-1',
-    'document:document-1/section:section-2'
-  ],
-}
+We simply save the title and text inputs of each section in a separate location, so that when
+editing a document, you'll only save the sections you need to, rather than the entire document
+every time.
 
-Where the key is that defined in storageLocation (type: LocalStorageLocation), and the
-storageLocations are arbitrary, but each entry in storageLocations corresponds to the same element
-in documentSections. storageLocations will point to keys in the localStorageLocation.
+We don't save ids for anything, that's handled by the redux reducer.
 
-Each section is saved as,
-
-key: 'document:document-1/section:section-1'
-value: ['3 + 4', '1 meter to yards']
-
-The value is just the sectionTextInputs of the section.
-
-It's done this way to minimise writes: you can add, change, and remove sections without writing
-the values of other sections.
-
-Also, we use the Patch type to get all write and remove operations before actually writing, again
-to minimise reads, writes, and removes. When you load documents, you have one initial read to get
-all the DocumentDescriptors, and then optionally one read and optionally one write to save
-everything in one go.
+sectionStorageKeys are generated using uuid v4, so if you had 10^36 sections, there's only a 1%
+chance of a collision.
 */
 
-const simpleDocumentKeys = ['documentId', 'documentTitle', 'documentSections', 'sectionTitles'];
-
-type DocumentDescriptor = {
-  documentId: DocumentId,
-  documentTitle: string,
-  documentSections: SectionId[],
-  sectionTitles: { [key:SectionId]: string },
-  storageLocations: string[],
-};
-
 type Patch = {
-  documentDescriptors: { [key:DocumentId]: DocumentDescriptor },
-  storageLocations: LocalStorageLocation,
   keysToRemove: string[],
   objToSet: { [key:string]: any },
 };
 
-const getStorageLocationMap = (storageLocations: string[], documentSections: SectionId[]) =>
-  fromPairs(zip(documentSections, storageLocations));
+const generateNewSectionId = () => uuid.v4();
+
+const getSectionStorageKeyMap = (storageOperation: StorageOperation) => {
+  const previousSectionIds = map('id', storageOperation.previousDocument.sections);
+  const previousSectionStorageKeys = storageOperation.storageLocation.sectionStorageKeys;
+  const previousSectionStorageKeyMap =
+    fromPairs(zip(previousSectionIds, previousSectionStorageKeys));
+
+  const nextSectionStorageKey = map(sectionId => (
+    previousSectionStorageKeyMap[sectionId] || generateNewSectionId()
+  ), storageOperation.document.sections);
+
+  return assign(previousSectionStorageKeyMap, nextSectionStorageKey);
+};
+
+const getStorageLocation = (storageOperation, sectionStorageKeyMap): LocalStorageLocation => ({
+  type: STORAGE_LOCAL,
+  title: storageOperation.title,
+  sectionStorageKeys: flow(
+    map('id'),
+    map(propertyOf(sectionStorageKeyMap))
+  )(storageOperation.document.sections),
+});
 
 const getStoragePairs = flow(
   mapValues(JSON.stringify),
   toPairs
 );
 
-const getDescriptorForDocument = (document: Document, patch: Patch) =>
-  get(['documentDescriptors', document.documentId], patch);
-
-const createUpdateDocumentDescriptor: (
-  storageOperation: StorageOperation,
-  storageLocation: LocalStorageLocation,
-  patch: Patch
-) => Patch = curry((
-  storageOperation: StorageOperation,
-  storageLocation: LocalStorageLocation,
-  patch: Patch
-): Patch => {
-  const getSectionStorageKey = (sectionId: SectionId) =>
-    `${storageLocation.storageKey}/section:${sectionId}`;
-
-  const { document } = storageOperation;
-  const existingDocumentDescriptor = getDescriptorForDocument(document, patch);
-
-  const existingStorageMap = getStorageLocationMap(
-    get('storageLocations', existingDocumentDescriptor),
-    get('documentSections', existingDocumentDescriptor)
-  );
-
-  const { documentId, documentTitle, documentSections, sectionTitles } = document;
-  const storageLocations = map(sectionId => (
-    (sectionId in existingStorageMap)
-      ? existingStorageMap[sectionId]
-      : getSectionStorageKey(sectionId)
-  ), documentSections);
-
-  const newDocumentDescriptor: DocumentDescriptor =
-    { documentId, documentTitle, documentSections, sectionTitles, storageLocations };
-
-  return flow(
-    update('storageLocations', append(storageLocation)),
-    set(['objToSet', storageLocation.storageKey], newDocumentDescriptor),
-    set(['documentDescriptors', document.documentId], newDocumentDescriptor),
-  )(patch);
-});
-
-const updateDocumentDescriptorIfChanged: (
-  storageOperation: StorageOperation,
-  patch: Patch
-) => Patch = curry((
-  storageOperation: StorageOperation,
-  patch: Patch
-): Patch => {
-  const { document, previousDocument, storageLocation } = storageOperation;
-
-  const documentDescriptorDidChange = Boolean(previousDocument) && some(key => (
-    !isEqual(document[key], previousDocument[key])
-  ), simpleDocumentKeys);
-
-  return documentDescriptorDidChange
-    ? createUpdateDocumentDescriptor(storageLocation, storageOperation, patch)
-    : update('storageLocations', append(storageLocation), patch);
-});
-
 const saveSections: (
-  documentSections: SectionId[],
-  document: Document,
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
+  sectionsToSave: SectionId,
   patch: Patch
 ) => Patch = curry((
-  documentSections: SectionId[],
-  document: Document,
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
+  sectionsToSave: SectionId,
   patch: Patch
 ): Patch => {
-  const documentDescriptor = getDescriptorForDocument(document, patch);
-  const { storageLocations } = documentDescriptor;
-
-  const sectionStorageMap = getStorageLocationMap(storageLocations, documentSections);
-
-  const { sectionTextInputs } = document;
+  const sectionsById = flow(
+    keyBy('id'),
+    mapValues(pick(['title', 'textInputs']))
+  )(storageOperation.document.sections);
 
   const storagePairs = map(over([
-    propertyOf(sectionStorageMap),
-    propertyOf(sectionTextInputs),
-  ]), documentSections);
+    propertyOf(sectionStorageKeyMap),
+    propertyOf(sectionsById),
+  ]), sectionsToSave);
   const storageObj = fromPairs(storagePairs);
 
   return update('objToSet', assign(__, storageObj), patch);
 });
 
 const removeSections: (
-  documentSections: SectionId[],
-  document: Document,
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
+  sectionsToRemove: SectionId,
   patch: Patch
 ) => Patch = curry((
-  documentSections: SectionId[],
-  document: Document,
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
+  sectionsToRemove: SectionId,
   patch: Patch
 ): Patch => {
-  const documentDescriptor = getDescriptorForDocument(document, patch);
-  const { storageLocations } = documentDescriptor;
-
-  const sectionStorageMap = getStorageLocationMap(storageLocations, documentSections);
-  const keysToRemove = map(propertyOf(sectionStorageMap), documentSections);
-
+  const keysToRemove = map(propertyOf(sectionStorageKeyMap), sectionsToRemove);
   return update('keysToRemove', concat(keysToRemove), patch);
 });
 
+const sectionKeysToCheck = ['title', 'textInputs'];
+
 const calculateMinimumSaveRemoveSections: (
   storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
   patch: Patch,
 ) => Patch = curry((
   storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object,
   patch: Patch,
 ): Patch => {
   const { document, previousDocument } = storageOperation;
-  const { documentSections, sectionTextInputs } = document;
+  const { sections } = document;
+  const sectionIds = map('id', sections);
+  const previousSectionIds = map('id', get('sections', previousDocument));
 
-  if (!previousDocument) {
-    return saveSections(documentSections, storageOperation, patch);
-  }
+  const sectionsById = keyBy('id', sections);
+  const previousSectionsById = keyBy('id', previousDocument.sections);
 
-  const { added, changed, removed } = getAddedChangedRemovedSectionItems(
-    sectionTextInputs,
-    previousDocument.sectionTextInputs
-  );
+  const added = difference(sectionIds, previousSectionIds);
+  const removed = difference(previousSectionIds, sectionIds);
+
+  const possiblyChanged = intersection(sectionIds, previousSectionIds);
+
+  const sectionChanged = sectionId => !every(key => (
+    isEqual(get([sectionId, key], sectionsById), get([sectionId, key], previousSectionsById))
+  ), sectionKeysToCheck);
+
+  const changed = filter(sectionChanged, possiblyChanged);
+
   const addedChanged = concat(added, changed);
 
   return flow(
-    saveSections(addedChanged, storageOperation),
-    removeSections(removed, storageOperation)
-  );
-});
-
-const applyCreateDocumentPatch = (
-  patch: Patch,
-  storageOperation: StorageOperation
-): Patch => {
-  const getDocumentStorageKey = (documentId: DocumentId) => `document:${documentId}`;
-
-  const { documentId, documentSections } = storageOperation.document;
-  const storageLocation = { type: STORAGE_LOCAL, storageKey: getDocumentStorageKey(documentId) };
-
-  return flow(
-    createUpdateDocumentDescriptor(storageLocation, storageOperation),
-    saveSections(documentSections, storageOperation)
+    saveSections(storageOperation, sectionStorageKeyMap, addedChanged),
+    removeSections(storageOperation, sectionStorageKeyMap, removed)
   )(patch);
-};
+});
 
 const applySavePatch = (
   patch: Patch,
-  storageOperation: StorageOperation
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object
 ): Patch => {
-  if (!getDescriptorForDocument(storageOperation.document, patch)) {
-    return applyCreateDocumentPatch(patch, storageOperation);
+  if (!storageOperation.previousDocument) {
+    console.warn('I did not think this could happen'); // eslint-disable-line
   }
-  return flow(
-    updateDocumentDescriptorIfChanged(storageOperation),
-    calculateMinimumSaveRemoveSections(storageOperation)
-  )(patch);
+  return calculateMinimumSaveRemoveSections(storageOperation, sectionStorageKeyMap, patch);
 };
 
 const applyRemovePatch = (
   patch: Patch,
-  storageOperation: StorageOperation
+  storageOperation: StorageOperation,
+  sectionStorageKeyMap: Object
 ): Patch => {
-  const { document } = storageOperation;
-  const { documentSections } = storageOperation;
-
-  return flow(
-    removeSections(documentSections, document),
-    update('keysToRemove', append(storageOperation.storageLocation.storageKey)),
-    update('storageLocations', append(null))
-  )(patch);
+  const allSections = map('id', storageOperation.document.sections);
+  return removeSections(storageOperation, sectionStorageKeyMap, allSections, patch);
 };
 
 
@@ -249,49 +167,28 @@ const storageModes = {
 
 export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface => {
   const loadDocument = async (storageLocation: LocalStorageLocation): Document => {
-    const item = storageLocation.storageKey
-      ? await storage.getItem(storageLocation.storageKey)
-      : null;
-    const documentDescriptor: ?DocumentDescriptor = item ? JSON.parse(item) : null;
-
-    if (!documentDescriptor) throw new Error('Failed to load document');
-
-    const { documentId, documentTitle, documentSections, sectionTitles, storageLocations } =
-      documentDescriptor;
-
-    const sectionTextInputPairs = await storage.getItems(storageLocations);
+    const sectionPairs = await storage.getItems(storageLocation.sectionStorageKeys);
     // Get correct ids
-    const sectionTextInputValues = map(pair => pair[1], sectionTextInputPairs);
-    const sectionTextInputs = fromPairs(zip(documentSections, sectionTextInputValues));
+    const sections = map(pair => pair[1], sectionPairs);
+    const document = {
+      id: null,
+      title: storageLocation.title,
+      sections,
+    };
 
-    return { documentId, documentTitle, documentSections, sectionTitles, sectionTextInputs };
+    return document;
   };
 
   const updateStore = async (storageOperations: StorageOperation[]): LocalStorageLocation[] => {
-    const storageLocations = map('storageLocation', storageOperations);
-    const storageLocationKeys = compact(map('storageKey', storageLocations));
+    const sectionStorageKeyMaps = map(getSectionStorageKeyMap, storageOperations);
+    const storageOpsSectionStorageKeys = zip(storageOperations, sectionStorageKeyMaps);
 
-    const documentDescriptorPairs = !isEmpty(storageLocationKeys)
-      ? await storage.multiGet(compact(storageLocationKeys))
-      : [];
-    const documentDescriptorMap = fromPairs(documentDescriptorPairs);
-
-    const documents = map('document', storageOperations);
-    const documentIds = map('documentId', documents);
-
-    const documentDescriptors = flow(
-      map(documentId => [documentId, documentDescriptorMap(documentId)]),
-      fromPairs
-    )(documentIds);
-
-    const patch: Patch = reduce((patch, storageOperation) => (
-      storageModes[storageOperation.type](patch, storageOperation)
+    const patch: Patch = reduce((patch, [storageOperation, sectionStorageKeyMap]) => (
+      storageModes[storageOperation.type](patch, storageOperation, sectionStorageKeyMap)
     ), ({
-      documentDescriptors,
-      storageLocations: [],
       keysToRemove: [],
       objToSet: {},
-    }: Patch), storageOperations);
+    }: Patch), storageOpsSectionStorageKeys);
 
     const { keysToRemove, objToSet } = patch;
 
@@ -302,7 +199,12 @@ export default (storage: PromiseStorage = getPromiseStorage()): StorageInterface
 
     if (!isEmpty(promises)) await Promise.all(promises);
 
-    return patch.storageLocations;
+    const storageLocations: LocalStorageLocation[] = map(
+      spread(getStorageLocation),
+      storageOpsSectionStorageKeys
+    );
+
+    return storageLocations;
   };
 
   return {
