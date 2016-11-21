@@ -12,10 +12,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   addAccountButton: {
+    justifyContent: 'flex-end',
     width: 100,
+    height: 64,
     marginHorizontal: 6,
     padding: 12,
-    paddingTop: 32,
     borderColor: 'rgb(220, 28, 100)',
     borderWidth: 1,
     borderRadius: 8,
