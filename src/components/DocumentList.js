@@ -5,7 +5,7 @@ import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
-import { addDocument, deleteDocument, setDocumentTitle, reorderDocuments } from '../redux';
+import { addDocument, deleteDocument, setDocumentTitle } from '../redux';
 
 
 const styles = StyleSheet.create({
@@ -51,7 +51,7 @@ class DocumentList extends Component {
 
   render() {
     const {
-      documents, documentTitles, addDocument, deleteDocument, setDocumentTitle, reorderDocuments,
+      documents, documentTitles, addDocument, deleteDocument, setDocumentTitle, navigateAccounts,
     } = this.props;
     const { draggingTableItems, editingTableItems } = this.state;
 
@@ -59,7 +59,13 @@ class DocumentList extends Component {
       <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
         <QuickCalculation />
         <View style={styles.actionRow}>
-          <View style={styles.flex} />
+          <View style={styles.flex}>
+            <TouchableOpacity onPress={navigateAccounts}>
+              <View style={styles.button}>
+                <Text style={styles.buttonText}>ACCOUNTS</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity onPress={addDocument}>
             <View style={[styles.button, styles.buttonBorder]}>
               <Text style={styles.buttonText}>NEW DOCUMENT</Text>
@@ -82,7 +88,6 @@ class DocumentList extends Component {
           onRowPress={this.navigateDocument}
           onDeletePress={deleteDocument}
           onRowChangeText={setDocumentTitle}
-          onOrderChange={reorderDocuments}
         />
       </KeyboardAwareScrollView>
     );
@@ -94,5 +99,5 @@ export default connect(
     documents,
     documentTitles,
   }),
-  { addDocument, deleteDocument, setDocumentTitle, reorderDocuments }
+  { addDocument, deleteDocument, setDocumentTitle }
 )(DocumentList);

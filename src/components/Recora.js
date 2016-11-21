@@ -6,6 +6,7 @@ import { get } from 'lodash/fp';
 import { loadDocuments } from '../redux';
 import DocumentList from './DocumentList';
 import DocumentView from './DocumentView';
+import AccountsList from './AccountsList';
 
 
 class Recora extends Component {
@@ -33,8 +34,16 @@ class Recora extends Component {
   })
 
   navigateDocument = (documentId) => {
-    if (!this.navigator) return;
-    this.navigator.push(this.getRouteFor(documentId));
+    if (this.navigator) this.navigator.push(this.getRouteFor(documentId));
+  }
+
+  navigateAccounts = () => {
+    if (this.navigator) {
+      this.navigator.push({
+        component: AccountsList,
+        title: 'Accounts',
+      });
+    }
   }
 
   replaceDocument = (documentId) => {
@@ -56,9 +65,10 @@ class Recora extends Component {
           component: DocumentList,
           passProps: {
             navigateDocument: this.navigateDocument,
+            navigateAccounts: this.navigateAccounts,
           },
           navigationBarHidden: true,
-          title: 'Recora',
+          title: 'Documents',
         }}
         style={{ flex: 1 }}
       />

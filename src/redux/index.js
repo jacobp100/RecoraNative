@@ -1,7 +1,7 @@
 // @flow
 import {
   __, get, set, unset, concat, update, mapValues, without, reduce, assign, flow, includes, map,
-  sample, omit, omitBy, zip, curry, fromPairs, getOr, isNull, union, invert, sortBy,
+  sample, omitBy, zip, curry, fromPairs, isNull, union, invert, sortBy,
 } from 'lodash/fp';
 import quickCalculationExamples from './quickCalculationExamples.json';
 import { append, reorder, getOrThrow } from '../util';
@@ -29,7 +29,7 @@ const defaultState: State = {
 
   accounts: ['localStorage1'],
   accountNames: {
-    localStorage1: 'Local',
+    localStorage1: 'Device Storage',
   },
   accountTypes: {
     localStorage1: STORAGE_LOCAL,
@@ -67,7 +67,6 @@ const SET_DOCUMENT = 'recora:SET_DOCUMENT';
 const UPDATE_DOCUMENT_STORAGE_LOCATIONS = 'recora:UPDATE_DOCUMENT_STORAGE_LOCATIONS';
 const ADD_DOCUMENT = 'recora:ADD_DOCUMENT';
 const SET_DOCUMENT_TITLE = 'recora:SET_DOCUMENT_TITLE';
-const REORDER_DOCUMENTS = 'recora:REORDER_DOCUMENTS';
 const ADD_SECTION = 'recora:ADD_SECTION';
 const SET_SECTION_TITLE = 'recora:SET_SECTION_TITLE';
 const SET_TEXT_INPUTS = 'recora:SET_TEXT_INPUTS';
@@ -234,8 +233,6 @@ export default (state: State = defaultState, action: Object): State => {
       return doAddDocument(action.filename, action.accountId, state);
     case SET_DOCUMENT_TITLE:
       return set(['documentTitles', action.documentId], action.title, state);
-    case REORDER_DOCUMENTS:
-      return update('documents', reorder(action.order), state);
     case ADD_SECTION:
       return doAddSection(action.documentId, state);
     case SET_SECTION_TITLE:
@@ -300,8 +297,6 @@ export const addDocumentForAccount = (filename: string, accountId: StorageAccoun
   ({ type: ADD_DOCUMENT, filename, accountId });
 export const setDocumentTitle = (documentId: DocumentId, title: string) =>
   ({ type: SET_DOCUMENT_TITLE, documentId, title });
-export const reorderDocuments = (order: number[]) =>
-  ({ type: REORDER_DOCUMENTS, order });
 export const addSection = (documentId: DocumentId) =>
   ({ type: ADD_SECTION, documentId });
 export const setSectionTitle = (sectionId: SectionId, title: string) =>

@@ -30,8 +30,11 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
   },
-  rowTitleEditing: {
-    paddingHorizontal: 0,
+  rowTitleEditingHasDelete: {
+    paddingLeft: 0,
+  },
+  rowTitleEditingHasDragHandle: {
+    paddingRight: 0,
   },
   rowDeleteButton: {
     backgroundColor: '#FF3B30',
@@ -72,6 +75,9 @@ export const styles = StyleSheet.create({
 export default ({
   top,
   width,
+  canChangeTitle,
+  canDelete,
+  canReorder,
   title,
   dragHandler,
   isEditing,
@@ -84,13 +90,19 @@ export default ({
     style={[styles.rowContainer, isDragging && styles.rowContainerActive, { width, top }]}
   >
     <View style={styles.row}>
-      {isEditing && <TouchableOpacity onPress={onDeletePress}>
+      {isEditing && canDelete && <TouchableOpacity onPress={onDeletePress}>
         <View style={styles.rowDeleteButton}>
           <Text style={styles.rowDeleteButtonText}>&minus;</Text>
         </View>
       </TouchableOpacity>}
-      <View style={[styles.rowTitle, isEditing && styles.rowTitleEditing]}>
-        {isEditing ? (
+      <View
+        style={[
+          styles.rowTitle,
+          isEditing && canDelete && styles.rowTitleEditingHasDelete,
+          isEditing && canReorder && styles.rowTitleEditingHasDragHandle,
+        ]}
+      >
+        {(isEditing && canChangeTitle) ? (
           <TextInput
             style={styles.rowTextInput}
             value={title}
@@ -105,7 +117,7 @@ export default ({
           </TouchableOpacity>
         )}
       </View>
-      {isEditing && <View {...dragHandler} style={styles.dragHandle}>
+      {isEditing && canReorder && <View {...dragHandler} style={styles.dragHandle}>
         <View style={styles.dragHandleRow} />
         <View style={styles.dragHandleRow} />
         <View style={styles.dragHandleRow} />

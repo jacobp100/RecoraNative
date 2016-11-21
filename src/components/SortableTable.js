@@ -130,18 +130,25 @@ export default class SortableTable extends Component {
     const { rows, rowTitles, isEditing } = this.props;
     const { draggingId, rowTops, width, height } = this.state;
 
+    const canChangeTitle = typeof this.props.onRowChangeText === 'function';
+    const canDelete = typeof this.props.onDeletePress === 'function';
+    const canReorder = typeof this.props.onOrderChange === 'function';
+
     const rowElements = map(id => (
       <SortableTableRow
         key={id}
         width={width}
+        canChangeTitle={canChangeTitle}
+        canDelete={canDelete}
+        canReorder={canReorder}
         top={rowTops[id]}
         title={rowTitles[id]}
         isEditing={isEditing}
         isDragging={draggingId === id}
-        dragHandler={this.createGestureRecognizerFor(id).panHandlers}
+        dragHandler={canReorder ? this.createGestureRecognizerFor(id).panHandlers : null}
         onRowPress={this.createOnRowPressFor(id)}
-        onDeletePress={this.createOnDeletePressFor(id)}
-        onChangeText={this.createOnChangeTextFor(id)}
+        onDeletePress={canDelete ? this.createOnDeletePressFor(id) : null}
+        onChangeText={canChangeTitle ? this.createOnChangeTextFor(id) : null}
       />
     ), rows);
 
