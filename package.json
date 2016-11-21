@@ -3,31 +3,33 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "node node_modules/react-native/local-cli/cli.js start"
+    "start": "node node_modules/react-native/local-cli/cli.js start",
+    "flow": "flow; test $? -eq 0 -o $? -eq 2"
   },
   "dependencies": {
-    "lodash": "^4.16.4",
-    "react": "15.3.2",
+    "lodash": "^4.17.2",
+    "react": "^15.3.2",
     "react-native": "0.34.1",
     "react-native-keyboard-aware-scroll-view": "^0.2.1",
-    "react-native-linear-gradient": "^1.5.13",
-    "react-redux": "^4.4.5",
+    "react-native-linear-gradient": "^1.5.15",
+    "react-redux": "^4.4.6",
     "recora": "^0.1.0",
     "redux": "^3.6.0",
     "uuid": "^2.0.3"
   },
   "devDependencies": {
-    "babel-eslint": "^7.0.0",
-    "babel-plugin-transform-class-properties": "^6.16.0",
+    "babel-eslint": "^7.1.0",
+    "babel-plugin-transform-class-properties": "^6.19.0",
     "babel-plugin-transform-exponentiation-operator": "^6.8.0",
-    "babel-plugin-transform-flow-strip-types": "^6.14.0",
-    "babel-plugin-transform-object-rest-spread": "^6.16.0",
+    "babel-plugin-transform-flow-strip-types": "^6.18.0",
+    "babel-plugin-transform-object-rest-spread": "^6.19.0",
     "babel-preset-node6": "^11.0.0",
-    "eslint": "^3.7.1",
+    "eslint": "^3.10.2",
     "eslint-config-airbnb": "^12.0.0",
-    "eslint-plugin-flowtype": "^2.20.0",
+    "eslint-plugin-flowtype": "^2.25.0",
     "eslint-plugin-import": "^1.16.0",
     "eslint-plugin-jsx-a11y": "^2.2.2",
-    "eslint-plugin-react": "^6.3.0"
+    "eslint-plugin-react": "^6.7.1",
+    "flow-bin": "^0.35.0"
   }
 }

@@ -5,7 +5,6 @@ import { createStore, applyMiddleware } from 'redux';
 import { Provider } from 'react-redux';
 import reducer from '../redux';
 import Recora from './Recora';
-import cacheInvalidationMiddleware from '../redux/cacheInvalidationMiddleware';
 import currencyUpdaterMiddleware from '../redux/currencyUpdaterMiddleware';
 import persistenceMiddleware from '../redux/persistenceMiddleware';
 import recoraMiddleware from '../redux/recoraMiddleware';
@@ -14,11 +13,14 @@ import quickCalculationMiddleware from '../redux/quickCalculationMiddleware';
 
 const middlewares = applyMiddleware(
   // ({ getState }) => next => (action) => {
+  //   const prevState = getState();
   //   const returnValue = next(action);
-  //   console.log(getState());
+  //   const nextState = getState();
+  //   if (prevState.loadedDocuments !== nextState.loadedDocuments) {
+  //     console.log(nextState.loadedDocuments);
+  //   }
   //   return returnValue;
   // },
-  cacheInvalidationMiddleware(),
   currencyUpdaterMiddleware(AppState),
   persistenceMiddleware(AsyncStorage),
   recoraMiddleware(),

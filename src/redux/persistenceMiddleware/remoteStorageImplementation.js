@@ -1,26 +1,25 @@
 // @flow
-import { map, reduce, startsWith, update, set, flow, trim, isEmpty, filter } from 'lodash/fp';
+import { map, reduce, startsWith, update, trim, isEmpty, curry } from 'lodash/fp';
 import { append } from '../../util';
-import { STORAGE_ACTION_SAVE } from '../../types';
-import type { Document, Section, StorageInterface, RemoteStorageLocation } from '../../types'; // eslint-disable-line
+import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
+import type { // eslint-disable-line
+  Document, Section, StorageInterface, StorageLocation, StorageType,
+} from '../../types';
 
 
 const sectionToString = (section: Section) => {
-  const titleString = `## ${section.title}\n`;
-  const textInputStrings = map(input => `> ${input}\n`, section.textInputs);
-  return [titleString, ...textInputStrings].join('');
+  const titleString = `# ${section.title}`;
+  const textInputStrings = map(input => `> ${input}`, section.textInputs);
+  return [titleString, ...textInputStrings].join('\n');
 };
 
-const documentToString = (document: Document) => {
-  const titleString = `# ${document.title}\n`;
-  const sectionStrings = map(sectionToString, document.sections);
+const documentToString = (document: Document) => (
+  map(sectionToString, document.sections).join('\n')
+);
 
-  [titleString, ...sectionStrings].join('\n');
-};
-
-const parseDocumentString = (string: string) => reduce((document, line) => {
-  if (startsWith('##', line)) {
-    const title = trim(line.substring(2));
+const parseDocumentString = (filename, string: string) => reduce((document, line) => {
+  if (startsWith('#', line)) {
+    const title = trim(line.substring(1));
     const section: Section = {
       id: null,
       title,
@@ -28,9 +27,6 @@ const parseDocumentString = (string: string) => reduce((document, line) => {
     };
 
     return update('sections', append(section), document);
-  } else if (startsWith('#', line)) {
-    const title = trim(line.substring(1));
-    return set('title', title, document);
   } if (startsWith('>', line) && !isEmpty(document.sections)) {
     const lastSectionIndex = document.sections.length - 1;
     const textInput = trim(line.substring(1));
@@ -40,32 +36,62 @@ const parseDocumentString = (string: string) => reduce((document, line) => {
   return document;
 }, {
   id: null,
-  title: '',
+  title: filename,
   sections: [],
 }, string.split('\n'));
 
-export default (type, remote): StorageInterface => {
-  const loadDocument = async (storageLocation: RemoteStorageLocation) => {
-    const contents = await remote.get(storageLocation.userId, storageLocation.path);
-    const document: Document = parseDocumentString(contents);
+const setAccountProperties = curry((account, storageLocation) => ({
+  ...storageLocation,
+  accountId: account.id,
+}));
+
+type RemoteStorageInterface = {
+  list: (token: string) => Promise<StorageLocation[]>,
+  get: (token: string, location: any) => Promise<string>,
+  post: (token: string, location: any, body: string, doc: Document) => Promise<Object>,
+  delete: (token: string, location: any) => Promise<>,
+};
+
+export default (
+  type: StorageType,
+  remote: RemoteStorageInterface
+): StorageInterface => {
+  const loadDocuments = async (account): Promise<StorageLocation[]> => {
+    if (!account.token) throw new Error('You must provide an account token');
+    const storageLocations = await remote.list(account.token);
+    return map(setAccountProperties(account), storageLocations);
+  };
+
+  const loadDocument = async (account, storageLocation: StorageLocation): Promise<Document> => {
+    if (!account.token) throw new Error('You must provide an account token');
+    const contents = await remote.get(account.token, storageLocation);
+    const document: Document = parseDocumentString(storageLocation.title, contents);
     return document;
   };
 
-  const updateStore = flow(
-    // Ignore remove actions
-    filter({ type: STORAGE_ACTION_SAVE }),
-    map(({ document, storageLocation }) => remote.post(
-      documentToString(document),
-      storageLocation.userId,
-      storageLocation.path
-    )),
-    fetchRequests => Promise.all(fetchRequests)
-  );
+  const storageModes = {
+    [STORAGE_ACTION_SAVE]: (account, storageLocation, document) =>
+      remote.post(account.token, storageLocation, documentToString(document), document)
+        .then(setAccountProperties(account)),
+    [STORAGE_ACTION_REMOVE]: (account, storageLocation) =>
+      remote.delete(account.token, storageLocation)
+        .then(() => null),
+  };
+
+  const updateStore = (storageOperations) => {
+    const promises = map(({ action, account, storageLocation, document }) => (
+      storageModes[action](account, storageLocation, document)
+    ), storageOperations);
+
+    return Promise.all(promises);
+  };
 
   return {
     type,
-    delay: 15000,
+    // delay: 15000,
+    delay: 1000,
     maxWait: 30000,
+    loadDocuments,
     loadDocument,
     updateStore,
   };
