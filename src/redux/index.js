@@ -1,10 +1,9 @@
 // @flow
 import {
   __, get, set, unset, concat, update, mapValues, without, reduce, assign, flow, includes, map,
-  sample, omitBy, zip, curry, fromPairs, isNull, union, invert, sortBy,
+  omitBy, curry, isNull, union, invert, sortBy,
 } from 'lodash/fp';
-import quickCalculationExamples from './quickCalculationExamples.json';
-import { append, reorder, getOrThrow } from '../util';
+import { append, reorder, getOrThrow, objFrom } from '../util';
 import { STORAGE_LOCAL } from '../types';
 import type { // eslint-disable-line
   StorageLocation, Document, State, SectionId, DocumentId, RecoraResult, StorageType,
@@ -21,22 +20,14 @@ const defaultState: State = {
   sectionTextInputs: {},
   sectionResults: {},
   sectionTotals: {},
-  customUnits: {},
   loadedDocuments: [],
 
-  quickCalculationInput: '',
-  quickCalculationResult: { text: '' },
+  customUnits: {},
 
   accounts: ['localStorage1'],
-  accountNames: {
-    localStorage1: 'Device Storage',
-  },
-  accountTypes: {
-    localStorage1: STORAGE_LOCAL,
-  },
-  accountTokens: {
-    localStorage1: '',
-  },
+  accountNames: { localStorage1: 'Device Storage' },
+  accountTypes: { localStorage1: STORAGE_LOCAL },
+  accountTokens: { localStorage1: '' },
 };
 
 export const getAccount = curry((state: State, accountId: StorageAccountId): StorageAccount => ({
@@ -62,8 +53,9 @@ export const getDocument = curry((state: State, documentId: DocumentId): Documen
 
 const ADD_ACCOUNT = 'recora:ADD_ACCOUNT';
 const SET_ACCOUNTS = 'recora:SET_ACCOUNTS';
-const SET_DOCUMENTS = 'recora:SET_DOCUMENTS';
-const SET_DOCUMENT = 'recora:SET_DOCUMENT';
+const SET_DOCUMENT_STORAGE_LOCATIONS = 'recora:SET_DOCUMENT_STORAGE_LOCATIONS';
+const SET_DOCUMENT_CONTENT = 'recora:SET_DOCUMENT_CONTENT';
+const UNLOAD_DOCUMENT = 'recora:UNLOAD_DOCUMENT';
 const UPDATE_DOCUMENT_STORAGE_LOCATIONS = 'recora:UPDATE_DOCUMENT_STORAGE_LOCATIONS';
 const ADD_DOCUMENT = 'recora:ADD_DOCUMENT';
 const SET_DOCUMENT_TITLE = 'recora:SET_DOCUMENT_TITLE';
@@ -75,11 +67,7 @@ const SET_SECTION_RESULT = 'recora:SET_SECTION_RESULT';
 const REORDER_SECTIONS = 'recora:REORDER_SECTIONS';
 const DELETE_DOCUMENT = 'recora:DELETE_DOCUMENT';
 const DELETE_SECTION = 'recora:DELETE_SECTION';
-const SET_QUICK_CALCULATION_INPUT = 'recora:SET_QUICK_CALCULATION_INPUT';
-const GET_QUICK_CALCULATION_EXAMPLE = 'recora:GET_QUICK_CALCULATION_EXAMPLE';
-const SET_QUICK_CALCULATION_RESULT = 'recora:SET_QUICK_CALCULATION_RESULT';
 const SET_CUSTOM_UNITS = 'recora:SET_CUSTOM_UNITS';
-const UNLOAD_DOCUMENT = 'recora:UNLOAD_DOCUMENT';
 
 // When using an object with zero-based integer ids ({ 0: value, 1: value } etc), you get fast
 // array access. Until you delete documents or sections, this method will give fast access.
@@ -185,7 +173,7 @@ export default (state: State = defaultState, action: Object): State => {
     }
     case SET_ACCOUNTS: {
       const accountIds = map('id', action.accounts);
-      const accounts = fromPairs(zip(accountIds, action.accounts));
+      const accounts = objFrom(accountIds, action.accounts);
       return flow(
         update('accounts', union(accountIds)),
         update('accountTypes', assign(__, mapValues('type', accounts))),
@@ -193,7 +181,7 @@ export default (state: State = defaultState, action: Object): State => {
         update('accountNames', assign(__, mapValues('name', accounts)))
       )(state);
     }
-    case SET_DOCUMENTS: {
+    case SET_DOCUMENT_STORAGE_LOCATIONS: {
       const storageLocationIdToDocumentId = flow(
         mapValues('id'),
         invert
@@ -201,21 +189,21 @@ export default (state: State = defaultState, action: Object): State => {
       const documentIds = map(storageLocation => (
         storageLocationIdToDocumentId[storageLocation.id] || createDocumentId()
       ), action.documents);
-      const documentStorageLocations = fromPairs(zip(documentIds, action.documents));
+      const documentStorageLocations = objFrom(documentIds, action.documents);
       return flow(
         update('documents', union(documentIds)),
         doUpdateDocumentStorageLocations(documentStorageLocations)
       )(state);
     }
-    case SET_DOCUMENT: {
+    case SET_DOCUMENT_CONTENT: {
       const { documentId, document } = action;
 
       if (includes(documentId, state.loadedDocuments)) return state;
 
       const { title, sections } = document;
       const sectionIds = map(createSectionId, sections);
-      const sectionTitles = fromPairs(zip(sectionIds, map('title', sections)));
-      const sectionTextInputs = fromPairs(zip(sectionIds, map('textInputs', sections)));
+      const sectionTitles = objFrom(sectionIds, map('title', sections));
+      const sectionTextInputs = objFrom(sectionIds, map('textInputs', sections));
 
       return flow(
         update('loadedDocuments', append(documentId)),
@@ -247,25 +235,11 @@ export default (state: State = defaultState, action: Object): State => {
         set(['sectionTotals', action.sectionId], action.total)
       )(state);
     case REORDER_SECTIONS:
-      return update(
-        ['documentSections', action.documentId],
-        reorder(action.order),
-        state
-      );
+      return update(['documentSections', action.documentId], reorder(action.order), state);
     case DELETE_DOCUMENT:
       return doDeleteDocument(action.documentId, state);
     case DELETE_SECTION:
       return doDeleteUnloadSection(action.sectionId, state);
-    case SET_QUICK_CALCULATION_INPUT:
-      return set('quickCalculationInput', action.quickCalculationInput, state);
-    case GET_QUICK_CALCULATION_EXAMPLE:
-      return update(
-        'quickCalculationInput',
-        currentValue => sample(without([currentValue], quickCalculationExamples)),
-        state
-      );
-    case SET_QUICK_CALCULATION_RESULT:
-      return set('quickCalculationResult', action.quickCalculationResult, state);
     case SET_CUSTOM_UNITS:
       return set('customUnits', action.customUnits, state);
     default:
@@ -283,10 +257,10 @@ export const addAccount = (
   ({ type: ADD_ACCOUNT, accountType, accountId, accountToken, accountName });
 export const setAccounts = (accounts: StorageAccount) =>
   ({ type: SET_ACCOUNTS, accounts });
-export const setDocuments = (documents: StorageLocation[]) =>
-  ({ type: SET_DOCUMENTS, documents });
-export const setDocument = (documentId: DocumentId, document: Document) =>
-  ({ type: SET_DOCUMENT, documentId, document });
+export const setDocumentStorageLocations = (documents: StorageLocation[]) =>
+  ({ type: SET_DOCUMENT_STORAGE_LOCATIONS, documents });
+export const setDocumentContent = (documentId: DocumentId, document: Document) =>
+  ({ type: SET_DOCUMENT_CONTENT, documentId, document });
 export const unloadDocument = (documentId: DocumentId) =>
   ({ type: UNLOAD_DOCUMENT, documentId });
 export const updateDocumentStorageLocations = (documentStorageLocations: Object) =>
@@ -313,12 +287,6 @@ export const deleteDocument = (documentId: DocumentId) =>
   ({ type: DELETE_DOCUMENT, documentId });
 export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
-export const setQuickCalculationInput = (quickCalculationInput: string) =>
-  ({ type: SET_QUICK_CALCULATION_INPUT, quickCalculationInput });
-export const getQuickCalculationExample = () =>
-  ({ type: GET_QUICK_CALCULATION_EXAMPLE });
-export const setQuickCalculationResult = (quickCalculationResult: RecoraResult) =>
-  ({ type: SET_QUICK_CALCULATION_RESULT, quickCalculationResult });
 export const setCustomUnits = (customUnits: Object) =>
   ({ type: SET_CUSTOM_UNITS, customUnits });
 export { loadDocuments, loadDocument } from './persistenceMiddleware';

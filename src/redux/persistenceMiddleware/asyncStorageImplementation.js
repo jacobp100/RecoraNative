@@ -1,10 +1,10 @@
 // @flow
 import {
-  map, isEmpty, compact, zip, flow, filter, get, concat, set, groupBy, omit, fromPairs, uniq,
-  propertyOf,
+  map, isEmpty, compact, zip, flow, filter, get, concat, set, groupBy, omit, uniq, propertyOf,
 } from 'lodash/fp';
 import uuid from 'uuid';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE, STORAGE_LOCAL } from '../../types';
+import { objFrom } from '../../util';
 import type { // eslint-disable-line
   StorageOperation, Document, StorageInterface, LocalStorageLocation, StorageAccount,
 } from '../../types';
@@ -72,7 +72,7 @@ export default (storage: PromiseStorage): StorageInterface => {
       get(['documentStorageLocations', documentId], state);
 
     const newStorageLocationsByDocumentId =
-      fromPairs(zip(map('document.id', documentsToSave), storageLocations));
+      objFrom(map('document.id', documentsToSave), storageLocations);
 
     const documentsByAccountId = groupBy(flow(
       previousStorageLocation,

@@ -8,7 +8,6 @@ import Recora from './Recora';
 import currencyUpdaterMiddleware from '../redux/currencyUpdaterMiddleware';
 import persistenceMiddleware from '../redux/persistenceMiddleware';
 import recoraMiddleware from '../redux/recoraMiddleware';
-import quickCalculationMiddleware from '../redux/quickCalculationMiddleware';
 
 
 const middlewares = applyMiddleware(
@@ -21,10 +20,9 @@ const middlewares = applyMiddleware(
   //   }
   //   return returnValue;
   // },
-  currencyUpdaterMiddleware(AppState),
   persistenceMiddleware(AsyncStorage),
-  recoraMiddleware(),
-  quickCalculationMiddleware()
+  currencyUpdaterMiddleware(AppState),
+  recoraMiddleware()
 );
 const store = createStore(
   reducer,

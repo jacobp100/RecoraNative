@@ -2,9 +2,10 @@
 import React, { Component } from 'react';
 import { View, PanResponder, Animated } from 'react-native';
 import {
-  map, memoize, fromPairs, zip, range, forEach, keys, clamp, stubTrue, curry, pullAt, flow,
+  map, memoize, range, forEach, keys, clamp, stubTrue, curry, pullAt, flow,
 } from 'lodash/fp';
 import SortableTableRow, { rowHeight } from './SortableTableRow';
+import { objFrom } from '../util';
 
 const insertAt = curry((index, value, array) => [].concat(
   array.slice(0, index),
@@ -52,7 +53,7 @@ export default class SortableTable extends Component {
     const animatedValues = map(id => (
       new Animated.Value(this.baseRowTopFor(id, props))
     ), props.rows);
-    return fromPairs(zip(props.rows, animatedValues));
+    return objFrom(props.rows, animatedValues);
   }
 
   resetRowTops = () => {

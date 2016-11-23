@@ -1,5 +1,5 @@
 // @flow
-import { curry, concat, get, has, map, propertyOf, intersection } from 'lodash/fp';
+import { curry, concat, get, has, map, propertyOf, intersection, fromPars, zip } from 'lodash/fp';
 
 export const getOrThrow = (path: string | string[], source: Object) => {
   if (!has(path, source)) {
@@ -22,3 +22,5 @@ export const reorder = curry((order, elements) => {
 
   return noElementsAddedRemoved ? orderedElements : elements;
 });
+
+export const objFrom = (keys, values) => fromPars(zip(keys, values));

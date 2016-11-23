@@ -3,10 +3,11 @@ import React, { Component } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
 import LinearGradient from 'react-native-linear-gradient'; // eslint-disable-line
-import { getOr } from 'lodash/fp';
+import { getOr, without, sample } from 'lodash/fp';
+import Recora from 'recora';
 import HorizontallyRepeatingImage from './HorizontallyRepeatingImage';
 import HighlightedEntryInput from './HighlightedEntryInput';
-import { setQuickCalculationInput, getQuickCalculationExample } from '../redux';
+import quickCalculationExamples from '../quickCalculationExamples.json';
 
 const borderImage = require('../../assets/border-image.png');
 
@@ -71,15 +72,57 @@ const styles = StyleSheet.create({
   },
 });
 
+const matches = (regExp: RegExp, string: string) => string.match(regExp) || [];
+
 class QuickCalculation extends Component {
-  state = {
-    textInputHeight: 22,
+  constructor({ customUnits }) {
+    super();
+
+    const now = new Date();
+    const nowString = String(now);
+    let timezone: string = nowString.indexOf('(') > -1
+      ? matches(/[A-Z]/g, matches(/\([^)]+\)/, nowString)[0]).join('')
+      : matches(/[A-Z]{3,4}/, nowString)[0];
+    if (/[^a-z]/i.test(timezone)) timezone = 'UTC';
+
+    const dateObject = {
+      second: now.getSeconds(),
+      minute: now.getMinutes(),
+      hour: now.getHours(),
+      date: now.getDate(),
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      timezone,
+    };
+    const instance = new Recora();
+    instance.setDate(dateObject);
+    instance.setCustomUnits(customUnits);
+    this.instance = instance;
+
+    this.state = {
+      textInputHeight: 22,
+      textInput: '',
+      result: '',
+    };
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    const unitsDidChange = prevProps.customUnits !== this.props.customUnits;
+    const inputDidChange = prevState.textInput !== this.state.textInput;
+
+    if (unitsDidChange) this.instance.setCustomUnits(this.props.customUnits);
+
+    if (unitsDidChange || inputDidChange) {
+      Promise.resolve().then(() => {
+        this.setState({ result: this.instance.parse(this.state.textInput) });
+      });
+    }
   }
 
   onChange = (e) => {
     const { text } = e.nativeEvent;
     const textInput = text.replace(/\n/g, '');
-    this.props.setQuickCalculationInput(textInput);
+    this.setState({ textInput });
   }
 
   onContentSizeChange = (e) => {
@@ -87,14 +130,20 @@ class QuickCalculation extends Component {
     this.setState({ textInputHeight });
   }
 
+  getExample = () => {
+    this.setState(({ textInput }) => ({
+      textInput: sample(without([textInput], quickCalculationExamples)),
+    }));
+  }
+
   render() {
-    const { textInputHeight } = this.state;
-    const { textInput, result, getQuickCalculationExample } = this.props;
+    const { textInputHeight, textInput, result } = this.state;
 
     return (
       <LinearGradient
         colors={['rgb(218, 28, 120)', 'rgb(220, 28, 100)']}
-        start={[0, 0]} end={[1, 0]}
+        start={[0, 0]}
+        end={[1, 0]}
         style={styles.container}
       >
         <View style={styles.containerPadded}>
@@ -122,7 +171,7 @@ class QuickCalculation extends Component {
             </TextInput>
           </View>
           <View style={styles.resultExampleContainer}>
-            <TouchableOpacity onPress={getQuickCalculationExample}>
+            <TouchableOpacity onPress={this.getExample}>
               <Text
                 style={styles.exampleButton}
                 numberOfLines={1}
@@ -132,7 +181,7 @@ class QuickCalculation extends Component {
             </TouchableOpacity>
             <View style={styles.resultContainer}>
               <Text style={styles.result} numberOfLines={1}>
-                {getOr('?', 'pretty', result)}
+                {getOr(textInput ? '?' : '', 'pretty', result)}
               </Text>
             </View>
           </View>
@@ -147,8 +196,6 @@ class QuickCalculation extends Component {
 
 export default connect(
   state => ({
-    textInput: state.quickCalculationInput,
-    result: state.quickCalculationResult,
-  }),
-  { setQuickCalculationInput, getQuickCalculationExample }
+    customUnits: state.customUnits,
+  })
 )(QuickCalculation);

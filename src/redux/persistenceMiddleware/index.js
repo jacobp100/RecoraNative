@@ -1,15 +1,15 @@
 // @flow
 import {
   __, isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, forEach, map,
-  mapValues, curry, keys, keyBy, concat, fromPairs, zip, flow, assign, pick, omit, includes,
-  groupBy, values, flatten,
+  values, curry, keys, keyBy, concat, fromPairs, zip, flow, assign, pick, omit, includes, groupBy,
+  mapValues, flatten,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
-import { getOrThrow } from '../../util';
+import { getOrThrow, objFrom } from '../../util';
 import {
-  updateDocumentStorageLocations, setDocuments, setDocument, getDocument, setAccounts, getAccounts,
-  getAccount,
+  updateDocumentStorageLocations, setDocumentStorageLocations, setDocumentContent, getDocument,
+  setAccounts, getAccounts, getAccount,
 } from '../index';
 import { getPromiseStorage } from './promiseStorage';
 import asyncStorageImplementation from './asyncStorageImplementation';
@@ -216,8 +216,8 @@ export default (
       return await storage.loadDocument(account, storageLocation);
     });
 
-    // document is sent without ids, and when we dispatch setDocument, they are set
-    dispatch(setDocument(documentId, document));
+    // document is sent without ids, and when we dispatch setDocumentContent, they are set
+    dispatch(setDocumentContent(documentId, document));
 
     // Reconstruct the document from the state to get a document with ids
     const documentWithFixedIds = getDocument(getState(), documentId);
@@ -233,7 +233,7 @@ export default (
 
     await Promise.all(map(account => queueImplementationStorageOperation(account.type, storage => (
       storage.loadDocuments(account)
-        .then(documents => dispatch(setDocuments(documents)))
+        .then(documents => dispatch(setDocumentStorageLocations(documents)))
     )), accounts));
   };
 
@@ -247,8 +247,6 @@ export default (
       lastState,
       storageType
     );
-
-    console.log({ added, changed, removed });
 
     const addedChanged = concat(added, changed);
 
@@ -299,7 +297,7 @@ export default (
       const documents = map('document', storageOperations);
       const documentIds = map('id', documents);
 
-      const newStorageLocations = fromPairs(zip(documentIds, storageLocations));
+      const newStorageLocations = objFrom(documentIds, storageLocations);
       dispatch(updateDocumentStorageLocations(newStorageLocations));
     } catch (e) {
       // leave lastStatePerStorageType so we can pick up from there
