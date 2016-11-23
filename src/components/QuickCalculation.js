@@ -181,7 +181,7 @@ class QuickCalculation extends Component {
             </TouchableOpacity>
             <View style={styles.resultContainer}>
               <Text style={styles.result} numberOfLines={1}>
-                {getOr(textInput ? '?' : '', 'pretty', result)}
+                {getOr(textInput ? '?' : '-', 'pretty', result)}
               </Text>
             </View>
           </View>

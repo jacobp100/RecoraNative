@@ -1,10 +1,11 @@
 // @flow
 import React, { Component } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, NativeModules } from 'react-native';
 import { connect } from 'react-redux';
-import { isEmpty, without } from 'lodash/fp';
+import { isEmpty, without, flow, toPairs, map, join, mapValues } from 'lodash/fp';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import SortableTable from './SortableTable';
+import AuthenticationModal, { redirectUri } from './AuthenticationModal';
 
 const styles = StyleSheet.create({
   addAccountContainer: {
@@ -40,26 +41,54 @@ const styles = StyleSheet.create({
   },
 });
 
-const AddAccountButton = ({ children }) => (
-  <TouchableOpacity>
+const AddAccountButton = ({ onPress, children }) => (
+  <TouchableOpacity onPress={onPress}>
     <View style={styles.addAccountButton}>
       <Text style={styles.addAccountButtonTitle}>{children}</Text>
     </View>
   </TouchableOpacity>
 );
 
+const MODAL_NONE = 0;
+const MODAL_DROPBOX = 1;
+
+const getUri = (url, params) => `${url}?${flow(
+  mapValues(encodeURIComponent),
+  toPairs,
+  map(join('=')),
+  join('&')
+)(params)}`;
+
+const modalUris = {
+  [MODAL_DROPBOX]: getUri('https://www.dropbox.com/oauth2/authorize', {
+    response_type: 'token',
+    client_id: 'w0683mxt3cgd5vq',
+    redirect_uri: redirectUri,
+  }),
+};
+
+const authenticationParameters = {
+  [MODAL_DROPBOX]: 'access_token',
+};
+
 class AccountsList extends Component {
   state = {
     draggingTableItems: false,
+    modal: MODAL_NONE,
   }
 
+  setModal = modal => () => {
+    console.log(NativeModules.OAuth);
+    console.log(NativeModules);
+    NativeModules.OAuth.authenticate('https://google.com');
+  };
   startDraggingTableItems = () => this.setState({ draggingTableItems: true })
   endDraggingTableItems = () => this.setState({ draggingTableItems: false })
   toggleEditing = () => this.setState({ editingTableItems: !this.state.editingTableItems })
 
   render() {
     const { accounts, accountNames } = this.props;
-    const { draggingTableItems } = this.state;
+    const { draggingTableItems, modal } = this.state;
     return (
       <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
         <Text style={styles.title}>
@@ -70,7 +99,7 @@ class AccountsList extends Component {
           showsHorizontalScrollIndicator={false}
           horizontal
         >
-          <AddAccountButton>DropBox</AddAccountButton>
+          <AddAccountButton onPress={this.setModal(MODAL_DROPBOX)}>DropBox</AddAccountButton>
           <AddAccountButton>Google Drive</AddAccountButton>
           <AddAccountButton>One Drive</AddAccountButton>
         </ScrollView>
@@ -93,6 +122,10 @@ class AccountsList extends Component {
             isEditing
           />
         )}
+        <AuthenticationModal
+          uri={modalUris[modal]}
+          visible={Boolean(modal)}
+        />
       </KeyboardAwareScrollView>
     );
   }
