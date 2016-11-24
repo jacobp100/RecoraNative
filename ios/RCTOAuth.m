@@ -24,12 +24,11 @@ RCT_EXPORT_MODULE()
 
 - (id)init
 {
-  if (self = [super init]) {
-    [[NSNotificationCenter defaultCenter] addObserver:self
+  self = [super init];
+  [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(didAuthenticate:)
                                                name:@"kCloseSafariViewControllerNotification"
                                              object:nil];
-  }
   return self;
 }
 
@@ -38,7 +37,14 @@ RCT_EXPORT_MODULE()
   [self abort];
 }
 
-RCT_EXPORT_METHOD(authenticate:(NSString*)uri resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+- (NSDictionary *)constantsToExport
+{
+  return @{
+    @"url": @"recora://authenticate",
+  };
+}
+
+RCT_EXPORT_METHOD(authenticate:(NSString*)uri resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
 {
   [self abort];
 
@@ -54,7 +60,7 @@ RCT_EXPORT_METHOD(authenticate:(NSString*)uri resolver:(RCTPromiseResolveBlock)r
 - (void)didAuthenticate:(NSNotification*)notification
 {
   if (_resolve != nil) {
-    _resolve(notification.object);
+    _resolve([(NSURL *)notification.object absoluteString]);
   }
   [self clear];
 }

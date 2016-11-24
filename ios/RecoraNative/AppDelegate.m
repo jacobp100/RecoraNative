@@ -34,9 +34,9 @@
   return YES;
 }
 
-- (BOOL) application: (UIApplication *)application openURL: (NSURL *)url sourceApplication: (NSString *)sourceApplication annotation: (id)annotation
+- (BOOL) application:(UIApplication *)application openURL:(NSURL *)url options:(NSDictionary<UIApplicationOpenURLOptionsKey,id> *)options
 {
-  if ([sourceApplication isEqual: @"com.apple.SafariViewService"]) {
+  if ([[options valueForKey:UIApplicationOpenURLOptionsSourceApplicationKey] isEqual: @"com.apple.SafariViewService"]) {
     [[NSNotificationCenter defaultCenter] postNotificationName:@"kCloseSafariViewControllerNotification"
                                                         object: url];
   }

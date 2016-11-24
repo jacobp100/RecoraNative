@@ -23,4 +23,4 @@ export const reorder = curry((order, elements) => {
   return noElementsAddedRemoved ? orderedElements : elements;
 });
 
-export const objFrom = (keys, values) => fromPairs(zip(keys, values));
+export const objFrom = curry((keys, values) => fromPairs(zip(keys, values)));

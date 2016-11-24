@@ -1,8 +1,8 @@
 // @flow
 import {
   __, isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, forEach, map,
-  values, curry, keys, keyBy, concat, fromPairs, zip, flow, assign, pick, omit, includes, groupBy,
-  mapValues, flatten,
+  values, curry, keys, keyBy, concat, flow, assign, pick, omit, includes, groupBy, mapValues,
+  flatten, without, propertyOf,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
@@ -86,6 +86,11 @@ const removedDocuments = (
   previousDocuments
 ) => difference(previousDocuments, nextDocuments);
 
+const unloadedDocuments = (
+  nextState,
+  previousState,
+) => without(nextState.loadedDocuments, previousState.loadedDocuments);
+
 const changedDocuments = (
   nextState,
   previousState,
@@ -138,6 +143,7 @@ const changePriorityForDocumentsOfType = (
 
   if (!isEmpty(addedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
   if (!isEmpty(removedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
+  if (!isEmpty(unloadedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
   if (!isEmpty(changedDocuments(...args))) return UPDATE_PRIORITY_LAZY;
   return UPDATE_PRIORITY_NO_CHANGES;
 };
@@ -152,6 +158,7 @@ const getChangedDocumentsForStorageType = (
   return {
     added: addedDocuments(...args),
     removed: removedDocuments(...args),
+    unloaded: unloadedDocuments(...args),
     changed: changedDocuments(...args),
   };
 };
@@ -172,6 +179,8 @@ export default (
   const lastRejectionPerStorageType = {};
   // Used by this middleware to work out *what* documents changed
   const lastStatePerStorageType = {};
+  // If a document is loaded, modified, and unloaded
+  let unloadedDocumentsToSaveById = {};
 
   const promisesPerStorageType = {};
   const queueImplementationStorageOperation = (
@@ -242,7 +251,7 @@ export default (
     const lastState = lastStatePerStorageType[storageType];
     const currentState = getState();
 
-    const { added, changed, removed } = getChangedDocumentsForStorageType(
+    const { added, changed, unloaded, removed } = getChangedDocumentsForStorageType(
       currentState,
       lastState,
       storageType
@@ -250,11 +259,18 @@ export default (
 
     const addedChanged = concat(added, changed);
 
-    const currentDocumentById = flow(
+    const addedChangedDocumentsById = flow(
       map(getDocument(currentState)),
-      zip(addedChanged),
-      fromPairs
+      objFrom(addedChanged)
     )(addedChanged);
+
+    const unloadedDocumentsById = flow(
+      map(propertyOf(unloadedDocumentsToSaveById)),
+      objFrom(unloaded)
+    )(unloaded);
+    console.log(unloaded);
+
+    const documentsToSaveById = assign(addedChangedDocumentsById, unloadedDocumentsById);
 
     const getStorageOperation = curry((
       action: StorageAction,
@@ -268,15 +284,16 @@ export default (
         storageLocation,
         account,
         document: action !== STORAGE_ACTION_REMOVE
-          ? getOrThrow(documentId, currentDocumentById)
+          ? getOrThrow(documentId, documentsToSaveById)
           : getOrThrow(documentId, lastDocumentById),
         previousDocument: lastDocumentById[documentId],
         lastRejection: lastRejectionPerStorageType[storageType],
       };
     });
 
+    const addedChangedUnloaded = concat(addedChanged, unloaded);
     const storageOperations = concat(
-      map(getStorageOperation(STORAGE_ACTION_SAVE), addedChanged),
+      map(getStorageOperation(STORAGE_ACTION_SAVE), addedChangedUnloaded),
       map(getStorageOperation(STORAGE_ACTION_REMOVE), removed)
     );
 
@@ -288,8 +305,10 @@ export default (
 
       lastDocumentById = flow(
         omit(removed),
-        assign(__, pick(addedChanged, currentDocumentById))
+        assign(__, pick(addedChanged, documentsToSaveById))
       )(lastDocumentById);
+
+      unloadedDocumentsToSaveById = omit(unloaded, unloadedDocumentsToSaveById);
 
       lastStatePerStorageType[storageType] = currentState;
       lastRejectionPerStorageType[storageType] = null;
@@ -345,12 +364,22 @@ export default (
     )(storageTypes);
     const allChanges = flatten(values(storageTypesByUpdatePriority));
 
+    const removedIds = removedDocuments(nextState, previousState);
+    if (!isEmpty(removedIds)) {
+      const removed = map(getDocument(previousState), removedIds);
+      unloadedDocumentsToSaveById =
+        assign(unloadedDocumentsToSaveById, objFrom(removedIds, removed));
+    }
+
     forEach(ensureLastStateForStorageType(previousState), allChanges);
     forEach(
       updateStorageImplementationImmediately,
       storageTypesByUpdatePriority[UPDATE_PRIORITY_IMMEDIATE]
     );
-    forEach(queueUpdateStorageImplementation, storageTypesByUpdatePriority[UPDATE_PRIORITY_LAZY]);
+    forEach(
+      queueUpdateStorageImplementation,
+      storageTypesByUpdatePriority[UPDATE_PRIORITY_LAZY]
+    );
 
     return returnValue;
   };

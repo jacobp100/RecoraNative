@@ -3,16 +3,22 @@ import React, { Component } from 'react';
 import { NavigatorIOS } from 'react-native';
 import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
-import { loadDocuments } from '../redux';
 import DocumentList from './DocumentList';
 import DocumentView from './DocumentView';
 import AccountsList from './AccountsList';
+import { loadDocuments } from '../redux';
 
 
 class Recora extends Component {
-  constructor({ loadDocuments }) {
+  constructor(props) {
     super();
-    loadDocuments();
+    props.loadDocuments();
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.accounts !== this.props.accounts) {
+      // this.props.loadDocuments();
+    }
   }
 
   onRightButtonPress = () => {
@@ -79,6 +85,7 @@ class Recora extends Component {
 export default connect(
   state => ({
     documentTitles: state.documentTitles,
+    accounts: state.accounts,
   }),
   { loadDocuments }
 )(Recora);

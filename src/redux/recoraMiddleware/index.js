@@ -20,8 +20,8 @@ const getAddedChangedRemovedSectionItems = (nextItems: Items, previousItems: Ite
   const added = difference(nextSectionIds, previousSectionIds);
   const itemsThatMayHaveChanged = intersection(previousSectionIds, nextSectionIds);
   const changed = reject(sectionId => isEqual(
-      previousItems[sectionId],
-      nextItems[sectionId]
+    previousItems[sectionId],
+    nextItems[sectionId]
   ), itemsThatMayHaveChanged);
 
   return { added, removed, changed };
@@ -43,6 +43,13 @@ const middleware = (
       batchImplementation.setCustomUnits(nextState.customUnits);
     }
 
+    /*
+    * FIXME:
+    * * Don't add unloaded documents to batchImplementation
+    * * Remove unloaded from batchImplementation
+    * * Don't remove unloaded documents from redux store? -- This seems dumb
+    * Maybe unloading should just force a save there and then?
+    */
     const { added, changed, removed } = getAddedChangedRemovedSectionItems(
       nextState.sectionTextInputs,
       previousState.sectionTextInputs

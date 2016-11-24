@@ -2,10 +2,13 @@
 import React, { Component } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, NativeModules } from 'react-native';
 import { connect } from 'react-redux';
-import { isEmpty, without, flow, toPairs, map, join, mapValues } from 'lodash/fp';
+import {
+  isEmpty, without, flow, toPairs, map, join, mapValues, split, fromPairs,
+} from 'lodash/fp';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import SortableTable from './SortableTable';
-import AuthenticationModal, { redirectUri } from './AuthenticationModal';
+import { addAccount } from '../redux';
+import { STORAGE_DROPBOX } from '../types';
 
 const styles = StyleSheet.create({
   addAccountContainer: {
@@ -59,16 +62,26 @@ const getUri = (url, params) => `${url}?${flow(
   join('&')
 )(params)}`;
 
+const getUriParams = (url) => flow(
+  split('&'),
+  map(split('=')),
+  fromPairs
+)(decodeURIComponent(url.split(/[?#]/, 2)[1]));
+
 const modalUris = {
   [MODAL_DROPBOX]: getUri('https://www.dropbox.com/oauth2/authorize', {
     response_type: 'token',
     client_id: 'w0683mxt3cgd5vq',
-    redirect_uri: redirectUri,
+    redirect_uri: NativeModules.OAuth.url,
   }),
 };
-
 const authenticationParameters = {
-  [MODAL_DROPBOX]: 'access_token',
+  [MODAL_DROPBOX]: params => ({
+    type: STORAGE_DROPBOX,
+    id: params.account_id,
+    token: params.access_token,
+    name: 'Dropbox',
+  }),
 };
 
 class AccountsList extends Component {
@@ -78,9 +91,12 @@ class AccountsList extends Component {
   }
 
   setModal = modal => () => {
-    console.log(NativeModules.OAuth);
-    console.log(NativeModules);
-    NativeModules.OAuth.authenticate('https://google.com');
+    NativeModules.OAuth.authenticate(modalUris[modal])
+      .then((url) => {
+        const params = authenticationParameters[modal](getUriParams(url));
+        this.props.addAccount(params.type, params.id, params.token, params.name);
+      })
+      .catch(() => {});
   };
   startDraggingTableItems = () => this.setState({ draggingTableItems: true })
   endDraggingTableItems = () => this.setState({ draggingTableItems: false })
@@ -88,7 +104,7 @@ class AccountsList extends Component {
 
   render() {
     const { accounts, accountNames } = this.props;
-    const { draggingTableItems, modal } = this.state;
+    const { draggingTableItems } = this.state;
     return (
       <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
         <Text style={styles.title}>
@@ -122,10 +138,6 @@ class AccountsList extends Component {
             isEditing
           />
         )}
-        <AuthenticationModal
-          uri={modalUris[modal]}
-          visible={Boolean(modal)}
-        />
       </KeyboardAwareScrollView>
     );
   }
@@ -136,5 +148,6 @@ export default connect(
     accounts: without(['localStorage1'], state.accounts),
     accountNames: state.accountNames,
     accountTypes: state.accountTypes,
-  })
+  }),
+  { addAccount }
 )(AccountsList);
