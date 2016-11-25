@@ -1,8 +1,8 @@
-// @flow
 /* global jest, it, expect */
 import { createStore, applyMiddleware } from 'redux';
+import { STORAGE_ACTION_REMOVE } from '../../types';
 import persistenceMiddleware, { flushStorageTypeUpdates } from '../persistenceMiddleware';
-import reducer, { addDocumentForAccount, deleteDocument, setTextInputs } from '..';
+import reducer, { unloadDocument, addDocumentForAccount, deleteDocument, setTextInputs } from '..';
 
 const MOCK_STORAGE_ACCOUNT_ID = 'MOCK_STORAGE_ACCOUNT_ID';
 const MOCK_STORAGE_TYPE = 'MOCK_STORAGE_TYPE';
@@ -28,7 +28,7 @@ const getMockStorageInterface = () => ({
   updateStore: jest.fn(),
 });
 
-const getMockState = () => ({
+const mockState = {
   documents: [],
   documentStorageLocations: {},
   documentTitles: {},
@@ -45,9 +45,11 @@ const getMockState = () => ({
   accountNames: { [MOCK_STORAGE_ACCOUNT_ID]: 'Mock' },
   accountTypes: { [MOCK_STORAGE_ACCOUNT_ID]: MOCK_STORAGE_TYPE },
   accountTokens: { [MOCK_STORAGE_ACCOUNT_ID]: '' },
-});
+};
 
-const getMocks = (state = getMockState()) => {
+const getMocks = ({
+  state = mockState,
+} = {}) => {
   const mockPromiseStorage = getMockPromiseStorage();
   const storageInterface = getMockStorageInterface();
   const middleware = persistenceMiddleware(mockPromiseStorage, [storageInterface]);
@@ -56,7 +58,7 @@ const getMocks = (state = getMockState()) => {
   return { store, storageInterface };
 };
 
-it('should save a document immediately after creation', async () => {
+it('saves a document immediately after creation', async () => {
   const { store, storageInterface } = getMocks();
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
   store.dispatch(addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID));
@@ -64,24 +66,27 @@ it('should save a document immediately after creation', async () => {
   expect(storageInterface.updateStore.mock.calls.length).toBe(1);
 });
 
-it('should delete a document immediately deletion creation', async () => {
+it('deletes a document immediately deletion creation', async () => {
   const initialState = reducer(
-    getMockState(),
+    mockState,
     addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
   );
-  const { store, storageInterface } = getMocks(initialState);
+  const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
-  store.dispatch(deleteDocument(store.getState().documents[0]));
+
+  const documentId = store.getState().documents[0];
+  store.dispatch(deleteDocument(documentId));
+
   await Promise.resolve();
   expect(storageInterface.updateStore.mock.calls.length).toBe(1);
 });
 
-it('should save a document after a change after waiting', async () => {
+it('saves a document after a change after waiting', async () => {
   const initialState = reducer(
-    getMockState(),
+    mockState,
     addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
   );
-  const { store, storageInterface } = getMocks(initialState);
+  const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
 
   const state = store.getState();
@@ -96,4 +101,68 @@ it('should save a document after a change after waiting', async () => {
   await Promise.resolve();
 
   expect(storageInterface.updateStore.mock.calls.length).toBe(1);
+});
+
+it('does not save a document with no changes after unloading', async () => {
+  const initialState = reducer(
+    mockState,
+    addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+  );
+  const { store, storageInterface } = getMocks({ state: initialState });
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  const state = store.getState();
+  const documentId = state.documents[0];
+  store.dispatch(unloadDocument(documentId));
+
+  await Promise.resolve();
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+});
+
+it('saves a document after changing then unloading', async () => {
+  const initialState = reducer(
+    mockState,
+    addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+  );
+  const { store, storageInterface } = getMocks({ state: initialState });
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  const state = store.getState();
+  const documentId = state.documents[0];
+  const sections = state.documentSections[documentId];
+  store.dispatch(setTextInputs(sections[0], ['1 + 2']));
+
+  await Promise.resolve();
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  store.dispatch(unloadDocument(documentId));
+
+  await Promise.resolve();
+  expect(storageInterface.updateStore.mock.calls.length).toBe(1);
+});
+
+it('emits only a removal storage operation when changing then deleting', async () => {
+  const initialState = reducer(
+    mockState,
+    addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+  );
+  const { store, storageInterface } = getMocks({ state: initialState });
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  const state = store.getState();
+  const documentId = state.documents[0];
+  const sections = state.documentSections[documentId];
+  store.dispatch(setTextInputs(sections[0], ['1 + 2']));
+
+  await Promise.resolve();
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  store.dispatch(deleteDocument(documentId));
+
+  await Promise.resolve();
+  expect(storageInterface.updateStore.mock.calls.length).toBe(1);
+
+  const storageOperations = storageInterface.updateStore.mock.calls[0][0];
+  expect(storageOperations.length).toEqual(1);
+  expect(storageOperations[0].action).toEqual(STORAGE_ACTION_REMOVE);
 });
