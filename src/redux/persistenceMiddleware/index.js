@@ -1,8 +1,8 @@
 // @flow
 import {
   __, isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, forEach, map,
-  values, curry, keys, keyBy, concat, flow, assign, pick, omit, includes, groupBy, mapValues,
-  flatten, without, pickBy,
+  values, curry, keys, keyBy, concat, flow, assign, pick, omit, groupBy, mapValues, flatten,
+  without, pickBy,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
@@ -40,6 +40,7 @@ All document updates are sent as a batch, and we don't allow a single implementa
 multiple requests happening at a time.
 */
 
+const FLUSH_STORAGE_TYPE_UPDATES = 'persistence-middleware:FLUSH_STORAGE_TYPE_UPDATES';
 const LOAD_DOCUMENTS = 'persistence-middleware:LOAD_DOCUMENTS';
 const LOAD_DOCUMENT = 'persistence-middleware:LOAD_DOCUMENT';
 
@@ -59,14 +60,11 @@ const UPDATE_PRIORITY_IMMEDIATE = 2;
 const documentKeysToPersist = ['documentTitles', 'documentSections'];
 const sectionKeysToPersist = ['sectionTitles', 'sectionTextInputs'];
 
-const loadedDocumentsForType = (state, loadedDocuments, storageType) => flow(
-  filter(id => {
-    const accountId = get(['documentStorageLocations', id, 'accountId'], state);
-    const accountType = get(['accountTypes', accountId], state);
-    return accountType === storageType;
-  }),
-  filter(id => includes(id, loadedDocuments))
-)(state.documents);
+const documentsForType = (state, storageType) => filter(id => {
+  const accountId = get(['documentStorageLocations', id, 'accountId'], state);
+  const accountType = get(['accountTypes', accountId], state);
+  return accountType === storageType;
+}, state.documents);
 
 const getUnloadedDocuments = (
   nextState,
@@ -97,7 +95,9 @@ const changedDocuments = (
   nextDocuments,
   previousDocuments,
 ) => {
-  const possiblyChanged = intersection(nextDocuments, previousDocuments);
+  const loadedDocuments = intersection(nextState.loadedDocuments, previousState.loadedDocuments);
+  const allPossiblyChangedDocuments = intersection(nextDocuments, previousDocuments);
+  const possiblyChanged = intersection(loadedDocuments, allPossiblyChangedDocuments);
 
   const valuesChangedBetweenStates = curry((keys, id) => !every(key => (
     isEqual(get([key, id], nextState), get([key, id], previousState))
@@ -118,12 +118,10 @@ const changedDocuments = (
 };
 
 const addedRemovedChangedArgsForType = (nextState, previousState, storageType) => {
-  const loadedDocumentsIntersection =
-    intersection(nextState.loadedDocuments, previousState.loadedDocuments);
   const previousDocumentsForStorageType =
-    loadedDocumentsForType(previousState, loadedDocumentsIntersection, storageType);
+    documentsForType(previousState, storageType);
   const nextDocumentsForStorageType =
-    loadedDocumentsForType(nextState, loadedDocumentsIntersection, storageType);
+    documentsForType(nextState, storageType);
 
   const args = [
     nextState,
@@ -164,9 +162,9 @@ const getChangedDocumentsForStorageType = (
 };
 
 export default (
-  storage: PromiseStorage = getPromiseStorage(),
+  persistentStorage: PromiseStorage = getPromiseStorage(),
   storageImplementations: StorageInterface[] = [
-    asyncStorageImplementation(storage),
+    asyncStorageImplementation(persistentStorage),
     dropboxStorageImplementation(),
   ]
 ): any => ({ getState, dispatch }) => {
@@ -194,7 +192,7 @@ export default (
   };
 
   const doLoadAccounts = async () => {
-    const item = await storage.getItem(accountsStorageKey);
+    const item = await persistentStorage.getItem(accountsStorageKey);
     if (!item) return;
     const accounts = JSON.parse(item);
 
@@ -203,7 +201,7 @@ export default (
 
   const doSaveAccounts = async () => {
     const accounts = getAccounts(getState());
-    await storage.setItem(accountsStorageKey, JSON.stringify(accounts));
+    await persistentStorage.setItem(accountsStorageKey, JSON.stringify(accounts));
   };
 
   const doLoadDocument = async (documentId: DocumentId) => {
@@ -256,6 +254,7 @@ export default (
       lastState,
       storageType
     );
+    // console.log({ added, changed, removed });
 
     const addedChanged = concat(added, changed);
 
@@ -271,10 +270,8 @@ export default (
     }, unloadedDocumentsToSaveById);
 
     const unloadedDocumentsWithChangesById = pickBy((document: Document) => (
-      !isEqual(lastDocumentById[document.id], document)
+      document.id && !isEqual(lastDocumentById[document.id], document)
     ), unloadedDocumentsForStorageById);
-
-    const unloadedWithChanges = keys(unloadedDocumentsWithChangesById);
 
     const documentsToSaveById = assign(addedChangedDocumentsById, unloadedDocumentsWithChangesById);
 
@@ -289,14 +286,15 @@ export default (
         action,
         storageLocation,
         account,
-        document: action !== STORAGE_ACTION_REMOVE
+        document: action === STORAGE_ACTION_SAVE
           ? getOrThrow(documentId, documentsToSaveById)
-          : getOrThrow(documentId, lastDocumentById),
+          : null,
         previousDocument: lastDocumentById[documentId],
         lastRejection: lastRejectionPerStorageType[storageType],
       };
     });
 
+    const unloadedWithChanges = keys(unloadedDocumentsWithChangesById);
     const addedChangedUnloaded = concat(addedChanged, unloadedWithChanges);
     const storageOperations = concat(
       map(getStorageOperation(STORAGE_ACTION_SAVE), addedChangedUnloaded),
@@ -309,13 +307,15 @@ export default (
     try {
       const storageLocations = await storage.updateStore(storageOperations, currentState);
 
+      const unloaded = keys(unloadedDocumentsForStorageById);
+      const removedUnloaded = concat(removed, unloaded);
+
       lastDocumentById = flow(
-        omit(removed),
+        omit(removedUnloaded),
         assign(__, pick(addedChanged, documentsToSaveById))
       )(lastDocumentById);
 
-      const allUnloaded = keys(unloadedDocumentsForStorageById);
-      unloadedDocumentsToSaveById = omit(allUnloaded, unloadedDocumentsToSaveById);
+      unloadedDocumentsToSaveById = omit(unloaded, unloadedDocumentsToSaveById);
 
       lastStatePerStorageType[storageType] = currentState;
       lastRejectionPerStorageType[storageType] = null;
@@ -350,8 +350,13 @@ export default (
     storageImplementationQueueMap[storageType]();
   };
 
+  const flushStorageTypeUpdates = (storageType) => {
+    storageImplementationQueueMap[storageType].flush();
+  };
+
   const updateStorageImplementationImmediately = (storageType) => {
-    queueImplementationStorageOperation(storageType, doUpdateStorageImplementation);
+    queueUpdateStorageImplementation(storageType);
+    flushStorageTypeUpdates(storageType);
   };
 
   return next => (action) => {
@@ -360,6 +365,10 @@ export default (
 
     if (action.type === LOAD_DOCUMENT) return doLoadDocument(action.documentId);
     if (action.type === LOAD_DOCUMENTS) return doLoadDocumentsList(true);
+    if (action.type === FLUSH_STORAGE_TYPE_UPDATES) {
+      flushStorageTypeUpdates(action.storageType);
+      return returnValue;
+    }
 
     const nextState: State = getState();
 
@@ -392,6 +401,9 @@ export default (
   };
 };
 
+// For testing
+export const flushStorageTypeUpdates = (storageType: StorageType) =>
+  ({ type: FLUSH_STORAGE_TYPE_UPDATES, storageType });
 export const loadDocuments = () =>
   ({ type: LOAD_DOCUMENTS });
 export const loadDocument = (documentId: DocumentId) =>

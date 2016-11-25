@@ -18,11 +18,9 @@ export type State = {|
   sectionTextInputs: { [key:SectionId]: string[] },
   sectionResults: { [key:SectionId]: RecoraResult[] },
   sectionTotals: { [key:SectionId]: RecoraResult },
-  customUnits: { [key:DocumentId]: Object },
   loadedDocuments: DocumentId[],
 
-  quickCalculationInput: string,
-  quickCalculationResult: ?Object,
+  customUnits: { [key:DocumentId]: Object },
 
   accounts: StorageAccountId[],
   accountNames: { [key:StorageAccountId]: string },
@@ -59,7 +57,7 @@ export type Section = {|
 export type Document = {|
   id: ?DocumentId,
   title: string,
-  sections: Section,
+  sections: Section[],
 |};
 export type StorageAction = string;
 export const STORAGE_ACTION_SAVE: StorageAction = 'STORAGE_ACTION_SAVE';
@@ -68,7 +66,7 @@ export type StorageOperation = {|
   action: StorageAction,
   storageLocation: ?StorageLocation,
   account: StorageAccount,
-  document: Document, // If STORAGE_ACTION_REMOVE, document === previousDocument
+  document: ?Document, // If STORAGE_ACTION_REMOVE, document === null
   previousDocument: ?Document,
   lastRejection: any,
 |};
