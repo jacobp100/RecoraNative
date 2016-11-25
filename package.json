@@ -4,18 +4,22 @@
   "private": true,
   "scripts": {
     "start": "node node_modules/react-native/local-cli/cli.js start",
-    "flow": "flow; test $? -eq 0 -o $? -eq 2"
+    "flow": "flow; test $? -eq 0 -o $? -eq 2",
+    "test": "jest"
   },
   "dependencies": {
     "lodash": "^4.17.2",
-    "react": "^15.3.2",
-    "react-native": "0.34.1",
+    "react": "15.4.1",
+    "react-native": "0.38.0",
     "react-native-keyboard-aware-scroll-view": "^0.2.1",
     "react-native-linear-gradient": "^1.5.15",
     "react-redux": "^4.4.6",
     "recora": "^0.1.0",
     "redux": "^3.6.0",
     "uuid": "^2.0.3"
+  },
+  "jest": {
+    "preset": "react-native"
   },
   "devDependencies": {
     "babel-eslint": "^7.1.0",
