@@ -34,6 +34,7 @@ RCT_EXPORT_MODULE()
 
 - (void)dealloc
 {
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
   [self abort];
 }
 

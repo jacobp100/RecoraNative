@@ -2,7 +2,7 @@
 import {
   __, isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, forEach, map,
   values, curry, keys, keyBy, concat, flow, assign, pick, omit, includes, groupBy, mapValues,
-  flatten, without, propertyOf,
+  flatten, without, pickBy,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
@@ -16,7 +16,7 @@ import asyncStorageImplementation from './asyncStorageImplementation';
 import dropboxStorageImplementation from './dropboxStorageImplementation';
 import type { PromiseStorage } from './promiseStorage'; // eslint-disable-line
 import type { // eslint-disable-line
-  State, DocumentId, StorageType, StorageAction, StorageOperation, StorageInterface,
+  State, DocumentId, Document, StorageType, StorageAction, StorageOperation, StorageInterface,
 } from '../../types';
 
 /*
@@ -68,6 +68,11 @@ const loadedDocumentsForType = (state, loadedDocuments, storageType) => flow(
   filter(id => includes(id, loadedDocuments))
 )(state.documents);
 
+const getUnloadedDocuments = (
+  nextState,
+  previousState,
+) => without(nextState.loadedDocuments, previousState.loadedDocuments);
+
 const addedDocuments = (
   nextState,
   previousState,
@@ -85,11 +90,6 @@ const removedDocuments = (
   nextDocuments,
   previousDocuments
 ) => difference(previousDocuments, nextDocuments);
-
-const unloadedDocuments = (
-  nextState,
-  previousState,
-) => without(nextState.loadedDocuments, previousState.loadedDocuments);
 
 const changedDocuments = (
   nextState,
@@ -139,11 +139,12 @@ const changePriorityForDocumentsOfType = (
   nextState: State,
   previousState: State,
 ) => (storageType: StorageType) => {
+  if (!isEmpty(getUnloadedDocuments(nextState, previousState))) return UPDATE_PRIORITY_IMMEDIATE;
+
   const args = addedRemovedChangedArgsForType(nextState, previousState, storageType);
 
   if (!isEmpty(addedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
   if (!isEmpty(removedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
-  if (!isEmpty(unloadedDocuments(...args))) return UPDATE_PRIORITY_IMMEDIATE;
   if (!isEmpty(changedDocuments(...args))) return UPDATE_PRIORITY_LAZY;
   return UPDATE_PRIORITY_NO_CHANGES;
 };
@@ -158,7 +159,6 @@ const getChangedDocumentsForStorageType = (
   return {
     added: addedDocuments(...args),
     removed: removedDocuments(...args),
-    unloaded: unloadedDocuments(...args),
     changed: changedDocuments(...args),
   };
 };
@@ -206,7 +206,7 @@ export default (
     await storage.setItem(accountsStorageKey, JSON.stringify(accounts));
   };
 
-  const doLoadDocument = async (documentId) => {
+  const doLoadDocument = async (documentId: DocumentId) => {
     const getAccountStorageLocation = (state) => {
       const storageLocation = get(['documentStorageLocations', documentId], state);
       const account = getAccount(state, storageLocation.accountId);
@@ -235,7 +235,7 @@ export default (
     return documentWithFixedIds;
   };
 
-  const doLoadDocumentsList = async (loadAccounts) => {
+  const doLoadDocumentsList = async (loadAccounts: bool) => {
     if (loadAccounts) await doLoadAccounts();
 
     const accounts = getAccounts(getState());
@@ -246,12 +246,12 @@ export default (
     )), accounts));
   };
 
-  const doUpdateStorageImplementation = async (storage) => {
+  const doUpdateStorageImplementation = async (storage: StorageInterface) => {
     const storageType = storage.type;
     const lastState = lastStatePerStorageType[storageType];
     const currentState = getState();
 
-    const { added, changed, unloaded, removed } = getChangedDocumentsForStorageType(
+    const { added, changed, removed } = getChangedDocumentsForStorageType(
       currentState,
       lastState,
       storageType
@@ -264,13 +264,19 @@ export default (
       objFrom(addedChanged)
     )(addedChanged);
 
-    const unloadedDocumentsById = flow(
-      map(propertyOf(unloadedDocumentsToSaveById)),
-      objFrom(unloaded)
-    )(unloaded);
-    console.log(unloaded);
+    const unloadedDocumentsForStorageById = pickBy((document: Document) => {
+      const accountId = get(['documentStorageLocations', document.id, 'accountId'], currentState);
+      const accountType = get(['accountTypes', accountId], currentState);
+      return accountType === storageType;
+    }, unloadedDocumentsToSaveById);
 
-    const documentsToSaveById = assign(addedChangedDocumentsById, unloadedDocumentsById);
+    const unloadedDocumentsWithChangesById = pickBy((document: Document) => (
+      !isEqual(lastDocumentById[document.id], document)
+    ), unloadedDocumentsForStorageById);
+
+    const unloadedWithChanges = keys(unloadedDocumentsWithChangesById);
+
+    const documentsToSaveById = assign(addedChangedDocumentsById, unloadedDocumentsWithChangesById);
 
     const getStorageOperation = curry((
       action: StorageAction,
@@ -291,7 +297,7 @@ export default (
       };
     });
 
-    const addedChangedUnloaded = concat(addedChanged, unloaded);
+    const addedChangedUnloaded = concat(addedChanged, unloadedWithChanges);
     const storageOperations = concat(
       map(getStorageOperation(STORAGE_ACTION_SAVE), addedChangedUnloaded),
       map(getStorageOperation(STORAGE_ACTION_REMOVE), removed)
@@ -308,7 +314,8 @@ export default (
         assign(__, pick(addedChanged, documentsToSaveById))
       )(lastDocumentById);
 
-      unloadedDocumentsToSaveById = omit(unloaded, unloadedDocumentsToSaveById);
+      const allUnloaded = keys(unloadedDocumentsForStorageById);
+      unloadedDocumentsToSaveById = omit(allUnloaded, unloadedDocumentsToSaveById);
 
       lastStatePerStorageType[storageType] = currentState;
       lastRejectionPerStorageType[storageType] = null;
@@ -364,11 +371,11 @@ export default (
     )(storageTypes);
     const allChanges = flatten(values(storageTypesByUpdatePriority));
 
-    const removedIds = removedDocuments(nextState, previousState);
-    if (!isEmpty(removedIds)) {
-      const removed = map(getDocument(previousState), removedIds);
+    const unlaodedDocumentIds = getUnloadedDocuments(nextState, previousState);
+    if (!isEmpty(unlaodedDocumentIds)) {
+      const unloadedDocuments = map(getDocument(previousState), unlaodedDocumentIds);
       unloadedDocumentsToSaveById =
-        assign(unloadedDocumentsToSaveById, objFrom(removedIds, removed));
+        assign(unloadedDocumentsToSaveById, objFrom(unlaodedDocumentIds, unloadedDocuments));
     }
 
     forEach(ensureLastStateForStorageType(previousState), allChanges);
