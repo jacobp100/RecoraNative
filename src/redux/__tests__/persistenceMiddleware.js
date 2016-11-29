@@ -1,4 +1,5 @@
 /* global jest, it, expect */
+/* eslint-disable flowtype/require-valid-file-annotation */
 import { createStore, applyMiddleware } from 'redux';
 import { STORAGE_ACTION_REMOVE } from '../../types';
 import persistenceMiddleware, { flushStorageTypeUpdates } from '../persistenceMiddleware';
@@ -49,9 +50,9 @@ const mockState = {
 
 const getMocks = ({
   state = mockState,
+  mockPromiseStorage = getMockPromiseStorage(),
+  storageInterface = getMockStorageInterface(),
 } = {}) => {
-  const mockPromiseStorage = getMockPromiseStorage();
-  const storageInterface = getMockStorageInterface();
   const middleware = persistenceMiddleware(mockPromiseStorage, [storageInterface]);
   const middlewares = applyMiddleware(middleware);
   const store = createStore(reducer, state, middlewares);

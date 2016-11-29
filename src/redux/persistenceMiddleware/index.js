@@ -1,8 +1,7 @@
 // @flow
 import {
-  isEqual, some, get, isEmpty, filter, difference, intersection, every, overSome, forEach, map,
-  curry, keys, keyBy, concat, flow, mapValues, without, getOr, omitBy, toPairs, invertBy, identity,
-  includes, omit,
+  isEqual, some, keys, isEmpty, filter, without, intersection, every, overSome, forEach, map, omit,
+  curry, get, keyBy, concat, flow, mapValues, getOr, omitBy, toPairs, invertBy, identity, includes,
 } from 'lodash/fp';
 import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
@@ -42,7 +41,7 @@ multiple requests happening at a time.
 
 type UpdateRecord = {
   previousDocumentIds: DocumentId[],
-  changesById: { [key:DocumentId]: Document },
+  changesForId: { [key:DocumentId]: Document },
 };
 
 const FLUSH_STORAGE_TYPE_UPDATES = 'persistence-middleware:FLUSH_STORAGE_TYPE_UPDATES';
@@ -79,7 +78,7 @@ const addedDocuments = (
 ) => {
   // Document wasn't loaded via loadDocuments
   const documentIsNew = documentId => !(documentId in previousState.documentStorageLocations);
-  return filter(documentIsNew, difference(nextDocuments, previousDocuments));
+  return filter(documentIsNew, without(previousDocuments, nextDocuments));
 };
 
 const removedDocuments = (
@@ -87,7 +86,7 @@ const removedDocuments = (
   previousState,
   nextDocuments,
   previousDocuments
-) => difference(previousDocuments, nextDocuments);
+) => without(nextDocuments, previousDocuments);
 
 const unloadedDocuments = (
   nextState,
@@ -146,30 +145,30 @@ const addedRemovedUnloadedChangedForStorageType = (
   };
 };
 
-const changesUpdatePriorityPerStorageType = (nextState, previousState, storageTypes) => {
-  const updatesByType = map(
+const changesUpdatePriorityForStorageType = (nextState, previousState, storageTypes) => {
+  const updatesForType = map(
     addedRemovedUnloadedChangedForStorageType(nextState, previousState),
     storageTypes
   );
-  const updatesByStorageType = flow(
+  const updatesForStorageType = flow(
     objFrom(storageTypes),
     omitBy(every(isEmpty))
-  )(updatesByType);
+  )(updatesForType);
 
-  const changesByStorageType = flow(
+  const changesForStorageType = flow(
     mapValues(({ added, changed }) => concat(added, changed)),
     omitBy(isEmpty),
     mapValues(addedChanged => objFrom(addedChanged, map(getDocument(nextState), addedChanged)))
-  )(updatesByStorageType);
+  )(updatesForStorageType);
 
-  const updatePriorityByStorageType = mapValues(({ added, removed, unloaded }) => (
+  const updatePriorityForStorageType = mapValues(({ added, removed, unloaded }) => (
     (!isEmpty(added) || !isEmpty(removed) || !isEmpty(unloaded))
       ? UPDATE_PRIORITY_IMMEDIATE
       : UPDATE_PRIORITY_LAZY
-  ), updatesByStorageType);
-  const storageTypesByUpdatePriority = invertBy(identity, updatePriorityByStorageType);
+  ), updatesForStorageType);
+  const storageTypesForUpdatePriority = invertBy(identity, updatePriorityForStorageType);
 
-  return { changesByStorageType, storageTypesByUpdatePriority };
+  return { changesForStorageType, storageTypesForUpdatePriority };
 };
 
 const documentIdsForStorageType = (state, storageType) => filter(
@@ -192,20 +191,20 @@ export default (
   const storageTypes = keys(storages);
 
   // Used by storage implementations to work out *how* a document changed
-  const lastDocumentById = {};
+  const lastDocumentForId = {};
   // Used by storage implementation to attempt recovery
-  const lastRejectionPerStorageType = {};
+  const lastRejectionForStorageType = {};
   // Used by this middleware to work out *what* documents changed
-  const updateRecordsPerStorageType: { [key:StorageType]: UpdateRecord } = {};
+  const updateRecordsForStorageType: { [key:StorageType]: UpdateRecord } = {};
 
-  const promisesPerStorageType = {};
+  const queuePromiseForStorageType = {};
   const queueImplementationStorageOperation = (
     storageType,
     callback: (storgae: StorageInterface) => Promise<any>
   ) => {
-    const existingPromise = promisesPerStorageType[storageType] || Promise.resolve();
+    const existingPromise = queuePromiseForStorageType[storageType] || Promise.resolve();
     const returnValue = existingPromise.then(() => callback(storages[storageType]));
-    promisesPerStorageType[storageType] = returnValue.catch(() => {});
+    queuePromiseForStorageType[storageType] = returnValue.catch(() => {});
     return returnValue;
   };
 
@@ -223,16 +222,16 @@ export default (
   };
 
   const doLoadDocument = async (documentId: DocumentId) => {
-    const getAccountStorageLocation = (state) => {
+    const accountAndStorageLocation = (state) => {
       const storageLocation = get(['documentStorageLocations', documentId], state);
       const account = getAccount(state, storageLocation.accountId);
       return { account, storageLocation };
     };
 
-    const { id: previousAccountId, type } = getAccountStorageLocation(getState()).account;
+    const { id: previousAccountId, type } = accountAndStorageLocation(getState()).account;
 
     const document = await queueImplementationStorageOperation(type, async (storage) => {
-      const { account, storageLocation } = getAccountStorageLocation(getState());
+      const { account, storageLocation } = accountAndStorageLocation(getState());
 
       if (account.id !== previousAccountId) {
         throw new Error('Document moved when attempting to load');
@@ -246,7 +245,7 @@ export default (
 
     // Reconstruct the document from the state to get a document with ids
     const documentWithFixedIds = getDocument(getState(), documentId);
-    lastDocumentById[documentId] = documentWithFixedIds;
+    lastDocumentForId[documentId] = documentWithFixedIds;
 
     return documentWithFixedIds;
   };
@@ -268,21 +267,21 @@ export default (
 
     const currentDocumentIds = documentIdsForStorageType(currentState, storageType);
     const {
-      previousDocumentIds, changesById: possibleChanges,
-    } = updateRecordsPerStorageType[storageType];
+      previousDocumentIds, changesForId: possibleChanges,
+    } = updateRecordsForStorageType[storageType];
 
     const removed = without(currentDocumentIds, previousDocumentIds);
 
-    const changesById = flow(
+    const changesForId = flow(
       omit(removed),
       omitBy((document) => (
         document.id &&
           includes(document.id, previousDocumentIds) && // Omit newly added documents
-          isEqual(lastDocumentById[document.id], document) // Omit unchanged documents
+          isEqual(lastDocumentForId[document.id], document) // Omit unchanged documents
       ))
     )(possibleChanges);
 
-    const getStorageOperation = curry((
+    const storageOperation = curry((
       action: StorageAction,
       documentId: DocumentId
     ): StorageOperation => {
@@ -294,16 +293,16 @@ export default (
         storageLocation,
         account,
         document: action === STORAGE_ACTION_SAVE
-          ? getOrThrow(documentId, changesById)
+          ? getOrThrow(documentId, changesForId)
           : null,
-        previousDocument: lastDocumentById[documentId],
-        lastRejection: lastRejectionPerStorageType[storageType],
+        previousDocument: lastDocumentForId[documentId],
+        lastRejection: lastRejectionForStorageType[storageType],
       };
     });
 
     const storageOperations = concat(
-      map(getStorageOperation(STORAGE_ACTION_SAVE), keys(changesById)),
-      map(getStorageOperation(STORAGE_ACTION_REMOVE), removed)
+      map(storageOperation(STORAGE_ACTION_SAVE), keys(changesForId)),
+      map(storageOperation(STORAGE_ACTION_REMOVE), removed)
     );
 
     // Don't reset lastRejection, lastState, or lastDocument
@@ -312,12 +311,12 @@ export default (
     try {
       const storageLocations = await storage.updateStore(storageOperations, currentState);
 
-      Object.assign(lastDocumentById, changesById);
-      updateRecordsPerStorageType[storageType] = {
+      Object.assign(lastDocumentForId, changesForId);
+      updateRecordsForStorageType[storageType] = {
         previousDocumentIds: currentDocumentIds,
-        changesById: {},
+        changesForId: {},
       };
-      lastRejectionPerStorageType[storageType] = null;
+      lastRejectionForStorageType[storageType] = null;
 
       const documents = map('document', storageOperations);
       const documentIds = map('id', documents);
@@ -325,8 +324,8 @@ export default (
       const newStorageLocations = objFrom(documentIds, storageLocations);
       dispatch(updateDocumentStorageLocations(newStorageLocations));
     } catch (e) {
-      // leave lastStatePerStorageType so we can pick up from there
-      lastRejectionPerStorageType[storageType] = e;
+      // Leave updateRecordsForStorageType so we can continue from there
+      lastRejectionForStorageType[storageType] = e;
     }
   };
 
@@ -357,8 +356,8 @@ export default (
   const initialState = getState();
   forEach((storageType) => {
     const previousDocumentIds = documentIdsForStorageType(initialState, storageType);
-    const changesById = {};
-    updateRecordsPerStorageType[storageType] = { previousDocumentIds, changesById };
+    const changesForId = {};
+    updateRecordsForStorageType[storageType] = { previousDocumentIds, changesForId };
   }, storageTypes);
 
   return next => (action) => {
@@ -376,20 +375,20 @@ export default (
 
     if (accountsNeedsUpdating(nextState, previousState)) doSaveAccounts();
 
-    const { changesByStorageType, storageTypesByUpdatePriority } =
-      changesUpdatePriorityPerStorageType(nextState, previousState, storageTypes);
+    const { changesForStorageType, storageTypesForUpdatePriority } =
+      changesUpdatePriorityForStorageType(nextState, previousState, storageTypes);
 
-    forEach(([storageType, changesById]) => {
-      Object.assign(updateRecordsPerStorageType[storageType].changesById, changesById);
-    }, toPairs(changesByStorageType));
+    forEach(([storageType, changesForId]) => {
+      Object.assign(updateRecordsForStorageType[storageType].changesForId, changesForId);
+    }, toPairs(changesForStorageType));
 
     forEach(
       updateStorageImplementationImmediately,
-      storageTypesByUpdatePriority[UPDATE_PRIORITY_IMMEDIATE]
+      storageTypesForUpdatePriority[UPDATE_PRIORITY_IMMEDIATE]
     );
     forEach(
       queueUpdateStorageImplementation,
-      storageTypesByUpdatePriority[UPDATE_PRIORITY_LAZY]
+      storageTypesForUpdatePriority[UPDATE_PRIORITY_LAZY]
     );
 
     return returnValue;
