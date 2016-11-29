@@ -3,7 +3,9 @@
 import { createStore, applyMiddleware } from 'redux';
 import { STORAGE_ACTION_REMOVE } from '../../types';
 import persistenceMiddleware, { flushStorageTypeUpdates } from '../persistenceMiddleware';
-import reducer, { unloadDocument, addDocumentForAccount, deleteDocument, setTextInputs } from '..';
+import reducer, {
+  unloadDocument, addDocumentForAccount, deleteDocument, setTextInputs, deleteAccount,
+} from '..';
 
 const MOCK_STORAGE_ACCOUNT_ID = 'MOCK_STORAGE_ACCOUNT_ID';
 const MOCK_STORAGE_TYPE = 'MOCK_STORAGE_TYPE';
@@ -166,4 +168,20 @@ it('emits only a removal storage operation when changing then deleting', async (
   const storageOperations = storageInterface.updateStore.mock.calls[0][0];
   expect(storageOperations.length).toEqual(1);
   expect(storageOperations[0].action).toEqual(STORAGE_ACTION_REMOVE);
+});
+
+it('emits no storage operations when removing accounts', async () => {
+  const initialState = reducer(
+    mockState,
+    addDocumentForAccount('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+  );
+  const { store, storageInterface } = getMocks({ state: initialState });
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
+
+  store.dispatch(deleteAccount(MOCK_STORAGE_ACCOUNT_ID));
+
+  store.dispatch(flushStorageTypeUpdates(MOCK_STORAGE_TYPE));
+  await Promise.resolve();
+
+  expect(storageInterface.updateStore.mock.calls.length).toBe(0);
 });

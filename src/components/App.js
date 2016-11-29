@@ -15,8 +15,8 @@ const middlewares = applyMiddleware(
   //   const prevState = getState();
   //   const returnValue = next(action);
   //   const nextState = getState();
-  //   if (prevState.loadedDocuments !== nextState.loadedDocuments) {
-  //     console.log(nextState.loadedDocuments);
+  //   if (prevState.accounts !== nextState.accounts) {
+  //     console.log(nextState.accounts, action);
   //   }
   //   return returnValue;
   // },

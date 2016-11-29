@@ -1,7 +1,7 @@
 // @flow
 import {
   __, get, set, unset, concat, update, mapValues, without, reduce, assign, flow, includes, map,
-  omitBy, curry, isNull, union, invert, sortBy,
+  omitBy, curry, isNull, union, invert, sortBy, filter,
 } from 'lodash/fp';
 import { append, reorder, getOrThrow, objFrom } from '../util';
 import { STORAGE_LOCAL } from '../types';
@@ -52,6 +52,8 @@ export const getDocument = curry((state: State, documentId: DocumentId): Documen
 
 
 const ADD_ACCOUNT = 'recora:ADD_ACCOUNT';
+const DELETE_ACCOUNT = 'recora:DELETE_ACCOUNT';
+const REORDER_ACCOUNTS = 'recora:REORDER_ACCOUNTS';
 const SET_ACCOUNTS = 'recora:SET_ACCOUNTS';
 const SET_DOCUMENT_STORAGE_LOCATIONS = 'recora:SET_DOCUMENT_STORAGE_LOCATIONS';
 const SET_DOCUMENT_CONTENT = 'recora:SET_DOCUMENT_CONTENT';
@@ -171,6 +173,23 @@ export default (state: State = defaultState, action: Object): State => {
         set(['accountTokens', accountId], action.accountToken)
       )(state);
     }
+    case DELETE_ACCOUNT: {
+      const { accountId } = action;
+      const documentsToRemove = filter(documentId => (
+        get(['documentStorageLocations', documentId, 'accountId'], state) === accountId
+      ), state.documents);
+      return flow(
+        state => reduce((state, documentId) => (
+          doDeleteDocument(documentId, state)
+        ), state, documentsToRemove),
+        update('accounts', without([accountId])),
+        unset(['accountTypes', accountId]),
+        unset(['accountNames', accountId]),
+        unset(['accountTokens', accountId])
+      )(state);
+    }
+    case REORDER_ACCOUNTS:
+      return update('accounts', reorder(action.order), state);
     case SET_ACCOUNTS: {
       const accountIds = map('id', action.accounts);
       const accounts = objFrom(accountIds, action.accounts);
@@ -255,6 +274,10 @@ export const addAccount = (
   accountName: string
 ) =>
   ({ type: ADD_ACCOUNT, accountType, accountId, accountToken, accountName });
+export const deleteAccount = (accountId: StorageAccountId) =>
+  ({ type: DELETE_ACCOUNT, accountId });
+export const reorderAccounts = (order: number[]) =>
+  ({ type: REORDER_ACCOUNTS, order });
 export const setAccounts = (accounts: StorageAccount) =>
   ({ type: SET_ACCOUNTS, accounts });
 export const setDocumentStorageLocations = (documents: StorageLocation[]) =>

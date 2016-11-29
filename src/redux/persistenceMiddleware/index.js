@@ -64,11 +64,16 @@ const UPDATE_PRIORITY_IMMEDIATE = 2;
 const documentKeysToPersist = ['documentTitles', 'documentSections'];
 const sectionKeysToPersist = ['sectionTitles', 'sectionTextInputs'];
 
-const documentsForType = (state, storageType) => filter(id => {
-  const accountId = get(['documentStorageLocations', id, 'accountId'], state);
-  const accountType = get(['accountTypes', accountId], state);
+const documentsWithinAccountsWithAccountType = (
+  currentState,
+  accounts,
+  storageType
+) => filter(id => {
+  const accountId = get(['documentStorageLocations', id, 'accountId'], currentState);
+  if (!includes(accountId, accounts)) return false;
+  const accountType = get(['accountTypes', accountId], currentState);
   return accountType === storageType;
-}, state.documents);
+}, currentState.documents);
 
 const addedDocuments = (
   nextState,
@@ -81,6 +86,7 @@ const addedDocuments = (
   return filter(documentIsNew, without(previousDocuments, nextDocuments));
 };
 
+// When deleting an account, we delete the documents too---but these don't count as removals
 const removedDocuments = (
   nextState,
   previousState,
@@ -91,7 +97,11 @@ const removedDocuments = (
 const unloadedDocuments = (
   nextState,
   previousState,
-) => without(nextState.loadedDocuments, previousState.loadedDocuments);
+  nextDocuments,
+) => intersection(
+  nextDocuments,
+  without(nextState.loadedDocuments, previousState.loadedDocuments)
+);
 
 const changedDocuments = (
   nextState,
@@ -125,16 +135,17 @@ const addedRemovedUnloadedChangedForStorageType = (
   nextState: State,
   previousState: State
 ) => (storageType: StorageType) => {
-  const previousIdsocumentsForStorageType =
-    documentsForType(previousState, storageType);
-  const nextDocuIdsentsForStorageType =
-    documentsForType(nextState, storageType);
+  const { accounts } = nextState;
+  const previousDocumentIdsForStorageType =
+    documentsWithinAccountsWithAccountType(previousState, accounts, storageType);
+  const nextDocumentIdsForStorageType =
+    documentsWithinAccountsWithAccountType(nextState, accounts, storageType);
 
   const args = [
     nextState,
     previousState,
-    nextDocuIdsentsForStorageType,
-    previousIdsocumentsForStorageType,
+    nextDocumentIdsForStorageType,
+    previousDocumentIdsForStorageType,
   ];
 
   return {
@@ -208,6 +219,8 @@ export default (
     return returnValue;
   };
 
+  let didLoadAccounts = false;
+
   const doLoadAccounts = async () => {
     const item = await persistentStorage.getItem(accountsStorageKey);
     if (!item) return;
@@ -250,8 +263,11 @@ export default (
     return documentWithFixedIds;
   };
 
-  const doLoadDocumentsList = async (loadAccounts: bool) => {
-    if (loadAccounts) await doLoadAccounts();
+  const doLoadDocumentsList = async () => {
+    if (!didLoadAccounts) {
+      await doLoadAccounts();
+      didLoadAccounts = true;
+    }
 
     const accounts = getAccounts(getState());
 
@@ -365,7 +381,7 @@ export default (
     const returnValue = next(action);
 
     if (action.type === LOAD_DOCUMENT) return doLoadDocument(action.documentId);
-    if (action.type === LOAD_DOCUMENTS) return doLoadDocumentsList(true);
+    if (action.type === LOAD_DOCUMENTS) return doLoadDocumentsList();
     if (action.type === FLUSH_STORAGE_TYPE_UPDATES) {
       flushStorageTypeUpdates(action.storageType);
       return returnValue;

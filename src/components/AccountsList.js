@@ -7,7 +7,7 @@ import {
 } from 'lodash/fp';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import SortableTable from './SortableTable';
-import { addAccount } from '../redux';
+import { addAccount, deleteAccount, reorderAccounts } from '../redux';
 import { STORAGE_DROPBOX } from '../types';
 
 const styles = StyleSheet.create({
@@ -103,7 +103,7 @@ class AccountsList extends Component {
   toggleEditing = () => this.setState({ editingTableItems: !this.state.editingTableItems })
 
   render() {
-    const { accounts, accountNames } = this.props;
+    const { accounts, accountNames, deleteAccount, reorderAccounts } = this.props;
     const { draggingTableItems } = this.state;
     return (
       <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
@@ -133,8 +133,8 @@ class AccountsList extends Component {
             onDragStart={this.startDraggingTableItems}
             onDragEnd={this.endDraggingTableItems}
             onRowPress={this.navigateDocument}
-            onDeletePress={() => {}}
-            onOrderChange={() => {}}
+            onDeletePress={deleteAccount}
+            onOrderChange={reorderAccounts}
             isEditing
           />
         )}
@@ -149,5 +149,5 @@ export default connect(
     accountNames: state.accountNames,
     accountTypes: state.accountTypes,
   }),
-  { addAccount }
+  { addAccount, deleteAccount, reorderAccounts }
 )(AccountsList);

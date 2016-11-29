@@ -17,7 +17,7 @@ class Recora extends Component {
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.accounts !== this.props.accounts) {
-      // this.props.loadDocuments();
+      this.props.loadDocuments();
     }
   }
 
