@@ -43,7 +43,8 @@ export type StorageLocation = Object & {
   lastModified: number,
 };
 
-export type LocalStorageLocation = StorageLocation & { sectionStorageKeys: string[] };
+// export type LocalStorageLocation = StorageLocation & { sectionStorageKeys: string[] };
+export type LocalStorageLocation = StorageLocation & { storageKey: string };
 export type DropBoxStorageBase = {| path: string, rev: string |};
 export type DropBoxStorageLocation = StorageLocation & DropBoxStorageBase;
 

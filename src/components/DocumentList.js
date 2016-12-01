@@ -1,11 +1,17 @@
 // @flow
 import React, { Component } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, RefreshControl,
+} from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { includes, filter } from 'lodash/fp';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
+import CreateDocument from './CreateDocument';
 import { addDocument, deleteDocument, setDocumentTitle } from '../redux';
+import { loadDocuments } from '../redux/persistenceMiddleware';
+import { button as buttonStyles } from '../styles';
 
 
 const styles = StyleSheet.create({
@@ -18,69 +24,143 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
-  button: {
-    padding: 8,
-  },
-  buttonBorder: {
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: 'rgb(220, 28, 100)',
-    borderRadius: 100,
-    backgroundColor: 'white',
-  },
-  buttonText: {
-    color: 'rgb(220, 28, 100)',
-    fontSize: 10,
-    fontWeight: '700',
+  textInput: {
+    height: 28,
+    textAlign: 'left',
   },
 });
 
 class DocumentList extends Component {
   state = {
+    isLoading: false,
     editingTableItems: false,
+    searchingTableItems: false,
+    searchQuery: '',
+    creatingDocument: false,
     draggingTableItems: false,
   }
 
+  componentWillMount() {
+    this.loadDocuments(false);
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (nextProps.accounts !== this.props.accounts) this.loadDocuments();
+  }
+
+  setSearchQuery = searchQuery => this.setState({ searchQuery })
   startDraggingTableItems = () => this.setState({ draggingTableItems: true })
   endDraggingTableItems = () => this.setState({ draggingTableItems: false })
-  toggleEditing = () => this.setState({ editingTableItems: !this.state.editingTableItems })
+  toggleEditing = () => this.setState({
+    editingTableItems: !this.state.editingTableItems,
+    searchingTableItems: false,
+    searchQuery: '',
+  })
+  toggleSearching = () => this.setState({
+    editingTableItems: false,
+    searchingTableItems: !this.state.searchingTableItems,
+    searchQuery: '',
+  })
+  toggleCreatingDocument = () => this.setState({ creatingDocument: !this.state.creatingDocument })
   navigateDocument = (documentId) => {
-    this.setState({ editingTableItems: false, draggingTableItems: false });
+    this.setState({
+      editingTableItems: false,
+      searchingTableItems: false,
+      searchQuery: '',
+      creatingDocument: false,
+      draggingTableItems: false,
+    });
     this.props.navigateDocument(documentId);
   }
+  loadDocuments = (skipSetLoading) => {
+    if (skipSetLoading !== false) this.setState({ isLoading: true });
+    const loadingPromise = (this.loadingPromise || Promise.resolve())
+      .then(() => this.props.loadDocuments())
+      .then(() => {
+        if (this.loadingPromise === loadingPromise) {
+          this.setState({ isLoading: false });
+        }
+      });
+    this.loadingPromise = loadingPromise;
+  }
+
+  loadingPromise = null
 
   render() {
     const {
-      documents, documentTitles, addDocument, deleteDocument, setDocumentTitle, navigateAccounts,
+      documents, documentTitles, deleteDocument, setDocumentTitle, navigateAccounts,
     } = this.props;
-    const { draggingTableItems, editingTableItems } = this.state;
+    const {
+      draggingTableItems, editingTableItems, searchingTableItems, searchQuery, creatingDocument,
+      isLoading,
+    } = this.state;
 
-    return (
-      <KeyboardAwareScrollView scrollEnabled={!draggingTableItems}>
-        <QuickCalculation />
-        <View style={styles.actionRow}>
-          <View style={styles.flex}>
-            <TouchableOpacity onPress={navigateAccounts}>
-              <View style={styles.button}>
-                <Text style={styles.buttonText}>ACCOUNTS</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity onPress={addDocument}>
-            <View style={[styles.button, styles.buttonBorder]}>
-              <Text style={styles.buttonText}>NEW DOCUMENT</Text>
+    const toolbar = searchingTableItems ? (
+      <View style={styles.actionRow}>
+        <View style={[styles.flex, buttonStyles.border, buttonStyles.textInputBorder]}>
+          <TextInput
+            style={[styles.flex, buttonStyles.buttonText, styles.textInput]}
+            value={searchQuery}
+            onChangeText={this.setSearchQuery}
+            placeholder="Search"
+          />
+        </View>
+        <View>
+          <TouchableOpacity onPress={this.toggleSearching}>
+            <View style={buttonStyles.button}>
+              <Text style={buttonStyles.buttonText}>CLOSE</Text>
             </View>
           </TouchableOpacity>
-          <View style={styles.flex}>
-            <TouchableOpacity onPress={this.toggleEditing}>
-              <View style={styles.button}>
-                <Text style={styles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
         </View>
+      </View>
+    ) : (
+      <View style={styles.actionRow}>
+        <View style={styles.flex}>
+          <TouchableOpacity onPress={this.toggleSearching}>
+            <View style={buttonStyles.button}>
+              <Text style={buttonStyles.buttonText}>SEARCH</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity onPress={this.toggleCreatingDocument}>
+          <View style={[buttonStyles.button, buttonStyles.border, buttonStyles.buttonBorder]}>
+            <Text style={buttonStyles.buttonText}>NEW DOCUMENT</Text>
+          </View>
+        </TouchableOpacity>
+        <View style={styles.flex}>
+          <TouchableOpacity onPress={this.toggleEditing}>
+            <View style={buttonStyles.button}>
+              <Text style={buttonStyles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+
+    const searchQueryLowerCase = searchQuery.toLowerCase();
+    const rows = !searchQuery
+      ? documents
+      : filter(documentId => (
+        includes(searchQueryLowerCase, documentTitles[documentId].toLowerCase())
+      ), documents);
+
+    const refreshControl = (
+      <RefreshControl
+        onRefresh={this.loadDocuments}
+        refreshing={isLoading}
+        title=" "
+      />
+    );
+
+    return (
+      <KeyboardAwareScrollView
+        scrollEnabled={!draggingTableItems}
+        refreshControl={refreshControl}
+      >
+        <QuickCalculation />
+        {toolbar}
         <SortableTable
-          rows={documents}
+          rows={rows}
           rowTitles={documentTitles}
           isEditing={editingTableItems}
           onDragStart={this.startDraggingTableItems}
@@ -89,15 +169,22 @@ class DocumentList extends Component {
           onDeletePress={deleteDocument}
           onRowChangeText={setDocumentTitle}
         />
+        <Modal visible={creatingDocument} animationType="slide">
+          <CreateDocument
+            onClose={this.toggleCreatingDocument}
+            onDocumentCreated={this.navigateDocument}
+          />
+        </Modal>
       </KeyboardAwareScrollView>
     );
   }
 }
 
 export default connect(
-  ({ documents, documentTitles }) => ({
+  ({ documents, documentTitles, accounts }) => ({
     documents,
     documentTitles,
+    accounts,
   }),
-  { addDocument, deleteDocument, setDocumentTitle }
+  { addDocument, deleteDocument, setDocumentTitle, loadDocuments }
 )(DocumentList);

@@ -58,7 +58,7 @@ export default (storage: PromiseStorage): StorageInterface => {
       zip(storageLocations),
       map(([storageLocation, storageOperation]) => [
         storageLocation.storageKey,
-        JSON.stringify(storageOperation.document),
+        JSON.stringify(omit('id', storageOperation.document)),
       ])
     )(documentsToSave);
 
@@ -80,9 +80,9 @@ export default (storage: PromiseStorage): StorageInterface => {
     ), state.documents);
 
     const accountsToUpdate = flow(
-      map('accountId'),
+      map('account.id'),
       uniq
-    )(storageLocations);
+    )(storageOperations);
 
     const newStorageLocationsForAccountsToUpdate = map(flow(
       propertyOf(documentsByAccountId),

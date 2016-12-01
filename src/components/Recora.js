@@ -6,21 +6,9 @@ import { get } from 'lodash/fp';
 import DocumentList from './DocumentList';
 import DocumentView from './DocumentView';
 import AccountsList from './AccountsList';
-import { loadDocuments } from '../redux';
 
 
 class Recora extends Component {
-  constructor(props) {
-    super();
-    props.loadDocuments();
-  }
-
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.accounts !== this.props.accounts) {
-      this.props.loadDocuments();
-    }
-  }
-
   onRightButtonPress = () => {
     if (this.documentView && this.documentView.onEdit) this.documentView.onEdit();
   }
@@ -85,7 +73,5 @@ class Recora extends Component {
 export default connect(
   state => ({
     documentTitles: state.documentTitles,
-    accounts: state.accounts,
   }),
-  { loadDocuments }
 )(Recora);

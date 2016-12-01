@@ -288,9 +288,10 @@ export const unloadDocument = (documentId: DocumentId) =>
   ({ type: UNLOAD_DOCUMENT, documentId });
 export const updateDocumentStorageLocations = (documentStorageLocations: Object) =>
   ({ type: UPDATE_DOCUMENT_STORAGE_LOCATIONS, documentStorageLocations });
-export const addDocument = () =>
-  ({ type: ADD_DOCUMENT, filename: 'New Document', accountId: 'localStorage1' });
-export const addDocumentForAccount = (filename: string, accountId: StorageAccountId) =>
+export const addDocument = (
+  filename: string = 'New Document',
+  accountId: StorageAccountId = 'localStorage1'
+) =>
   ({ type: ADD_DOCUMENT, filename, accountId });
 export const setDocumentTitle = (documentId: DocumentId, title: string) =>
   ({ type: SET_DOCUMENT_TITLE, documentId, title });

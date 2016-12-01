@@ -15,7 +15,7 @@ const borderImageHeight = 34;
 const borderImageWidth = 512;
 
 
-const overflow = 400;
+const overflow = 20;
 
 const styles = StyleSheet.create({
   container: {

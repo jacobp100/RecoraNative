@@ -82,7 +82,10 @@ const addedDocuments = (
   previousDocuments
 ) => {
   // Document wasn't loaded via loadDocuments
-  const documentIsNew = documentId => !(documentId in previousState.documentStorageLocations);
+  const documentIsNew = documentId => (
+    !(documentId in previousState.documentStorageLocations) &&
+    includes(documentId, nextState.loadedDocuments)
+  );
   return filter(documentIsNew, without(previousDocuments, nextDocuments));
 };
 
