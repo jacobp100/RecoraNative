@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 
 export const button = StyleSheet.create({
   button: {
-    padding: 8,
+    paddingVertical: 8,
   },
   border: {
     borderWidth: 1,
@@ -15,7 +15,6 @@ export const button = StyleSheet.create({
     paddingHorizontal: 24,
   },
   textInputBorder: {
-    marginHorizontal: 8,
     paddingHorizontal: 12,
   },
   buttonText: {

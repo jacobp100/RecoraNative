@@ -5,7 +5,7 @@ import { connect } from 'react-redux';
 import { get } from 'lodash/fp';
 import DocumentList from './DocumentList';
 import DocumentView from './DocumentView';
-import AccountsList from './AccountsList';
+import Settings from './Settings';
 
 
 class Recora extends Component {
@@ -31,11 +31,11 @@ class Recora extends Component {
     if (this.navigator) this.navigator.push(this.getRouteFor(documentId));
   }
 
-  navigateAccounts = () => {
+  navigateSettings = () => {
     if (this.navigator) {
       this.navigator.push({
-        component: AccountsList,
-        title: 'Accounts',
+        component: Settings,
+        title: 'Settings',
       });
     }
   }
@@ -59,7 +59,7 @@ class Recora extends Component {
           component: DocumentList,
           passProps: {
             navigateDocument: this.navigateDocument,
-            navigateAccounts: this.navigateAccounts,
+            navigateSettings: this.navigateSettings,
           },
           navigationBarHidden: true,
           title: 'Documents',

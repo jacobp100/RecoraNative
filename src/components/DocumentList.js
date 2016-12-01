@@ -19,10 +19,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 36,
     marginBottom: 24,
+    marginHorizontal: 12,
   },
   flex: {
     flex: 1,
     alignItems: 'center',
+  },
+  padLeft: {
+    paddingLeft: 12,
   },
   textInput: {
     height: 28,
@@ -88,7 +92,7 @@ class DocumentList extends Component {
 
   render() {
     const {
-      documents, documentTitles, deleteDocument, setDocumentTitle, navigateAccounts,
+      documents, documentTitles, deleteDocument, setDocumentTitle, navigateSettings,
     } = this.props;
     const {
       draggingTableItems, editingTableItems, searchingTableItems, searchQuery, creatingDocument,
@@ -97,7 +101,9 @@ class DocumentList extends Component {
 
     const toolbar = searchingTableItems ? (
       <View style={styles.actionRow}>
-        <View style={[styles.flex, buttonStyles.border, buttonStyles.textInputBorder]}>
+        <View
+          style={[styles.flex, buttonStyles.border, buttonStyles.textInputBorder]}
+        >
           <TextInput
             style={[styles.flex, buttonStyles.buttonText, styles.textInput]}
             value={searchQuery}
@@ -105,35 +111,35 @@ class DocumentList extends Component {
             placeholder="Search"
           />
         </View>
-        <View>
-          <TouchableOpacity onPress={this.toggleSearching}>
-            <View style={buttonStyles.button}>
-              <Text style={buttonStyles.buttonText}>CLOSE</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={this.toggleSearching}>
+          <View style={[buttonStyles.button, styles.padLeft]}>
+            <Text style={buttonStyles.buttonText}>CLOSE</Text>
+          </View>
+        </TouchableOpacity>
       </View>
     ) : (
       <View style={styles.actionRow}>
-        <View style={styles.flex}>
-          <TouchableOpacity onPress={this.toggleSearching}>
-            <View style={buttonStyles.button}>
-              <Text style={buttonStyles.buttonText}>SEARCH</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
         <TouchableOpacity onPress={this.toggleCreatingDocument}>
           <View style={[buttonStyles.button, buttonStyles.border, buttonStyles.buttonBorder]}>
             <Text style={buttonStyles.buttonText}>NEW DOCUMENT</Text>
           </View>
         </TouchableOpacity>
-        <View style={styles.flex}>
-          <TouchableOpacity onPress={this.toggleEditing}>
-            <View style={buttonStyles.button}>
-              <Text style={buttonStyles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.flex} />
+        <TouchableOpacity onPress={this.toggleEditing}>
+          <View style={buttonStyles.button}>
+            <Text style={buttonStyles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={this.toggleSearching}>
+          <View style={[buttonStyles.button, styles.padLeft]}>
+            <Text style={buttonStyles.buttonText}>SEARCH</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={navigateSettings}>
+          <View style={[buttonStyles.button, styles.padLeft]}>
+            <Text style={buttonStyles.buttonText}>SETTINGS</Text>
+          </View>
+        </TouchableOpacity>
       </View>
     );
 

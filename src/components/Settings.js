@@ -116,8 +116,8 @@ class AccountsList extends Component {
           horizontal
         >
           <AddAccountButton onPress={this.setModal(MODAL_DROPBOX)}>DropBox</AddAccountButton>
-          <AddAccountButton>Google Drive</AddAccountButton>
-          <AddAccountButton>One Drive</AddAccountButton>
+          {/* <AddAccountButton>Google Drive</AddAccountButton> */}
+          {/* <AddAccountButton>One Drive</AddAccountButton> */}
         </ScrollView>
         <Text style={styles.title}>
           Accounts
