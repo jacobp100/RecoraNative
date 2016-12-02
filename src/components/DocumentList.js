@@ -1,7 +1,7 @@
 // @flow
 import React, { Component } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, ActivityIndicator, RefreshControl,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, RefreshControl,
 } from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -130,16 +130,16 @@ class DocumentList extends Component {
             <Text style={buttonStyles.buttonText}>{editingTableItems ? 'DONE' : 'EDIT'}</Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={this.toggleSearching}>
+        {!editingTableItems && <TouchableOpacity onPress={this.toggleSearching}>
           <View style={[buttonStyles.button, styles.padLeft]}>
             <Text style={buttonStyles.buttonText}>SEARCH</Text>
           </View>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={navigateSettings}>
+        </TouchableOpacity>}
+        {!editingTableItems && <TouchableOpacity onPress={navigateSettings}>
           <View style={[buttonStyles.button, styles.padLeft]}>
             <Text style={buttonStyles.buttonText}>SETTINGS</Text>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity>}
       </View>
     );
 

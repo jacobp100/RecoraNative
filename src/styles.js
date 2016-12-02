@@ -1,6 +1,7 @@
 // @flow
 import { StyleSheet } from 'react-native';
 
+/* eslint-disable import/prefer-default-export */
 export const button = StyleSheet.create({
   button: {
     paddingVertical: 8,
