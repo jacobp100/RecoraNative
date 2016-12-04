@@ -9,23 +9,22 @@ import Settings from './Settings';
 
 
 class Recora extends Component {
-  onRightButtonPress = () => {
-    if (this.documentView && this.documentView.onEdit) this.documentView.onEdit();
+  getRouteFor = (documentId) => {
+    let documentView = null;
+    return {
+      component: DocumentView,
+      passProps: {
+        ref: ref => { documentView = ref; },
+        documentId,
+        refreshRoute: () => this.replaceDocument(documentId),
+      },
+      title: get(documentId, this.props.documentTitles),
+      rightButtonSystemIcon: 'edit',
+      onRightButtonPress: () => {
+        if (documentView) documentView.getWrappedInstance().showEditModal();
+      },
+    };
   }
-
-  getRouteFor = (documentId) => ({
-    component: props => <DocumentView
-      ref={documentView => { this.documentView = documentView; }}
-      {...props}
-    />,
-    passProps: {
-      documentId,
-      refreshRoute: () => this.replaceDocument(documentId),
-    },
-    title: get(documentId, this.props.documentTitles),
-    rightButtonSystemIcon: 'edit',
-    onRightButtonPress: this.onRightButtonPress,
-  })
 
   navigateDocument = (documentId) => {
     if (this.navigator) this.navigator.push(this.getRouteFor(documentId));
@@ -42,14 +41,13 @@ class Recora extends Component {
 
   replaceDocument = (documentId) => {
     // FIXME: This does not work.
+    if (!this.navigator) return;
     const currentRoute = this.navigator.navigationContext.currentRoute;
     currentRoute.title = get(documentId, this.props.documentTitles);
     this.navigator.resetTo(currentRoute);
   }
 
-  activeDocument = null;
   navigator = null;
-  documentView = null;
 
   render() {
     return (

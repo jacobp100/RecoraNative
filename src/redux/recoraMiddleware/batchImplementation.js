@@ -144,7 +144,7 @@ export default ({
     const total = flow(
       map('value'),
       compact,
-      filter(value => includes(value.type, typesToSkipInTotal)),
+      filter(value => !includes(value.type, typesToSkipInTotal)),
       ([head, ...tail]) => reduce((left, right) => ({
         type: 'NODE_FUNCTION',
         name: 'add',

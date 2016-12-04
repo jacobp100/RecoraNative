@@ -1,21 +1,31 @@
 // @flow
 import React, { Component } from 'react';
-import { Modal } from 'react-native';
+import { Modal, ActivityIndicator, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
-import { loadDocument, unloadDocument } from '../redux';
+import { unloadDocument } from '../redux';
+import { loadDocument } from '../redux/persistenceMiddleware';
 import EditModal from './EditModal';
 import Page from './Page';
 
+const styles = StyleSheet.create({
+  indicator: {
+    marginTop: 60,
+  },
+});
+
 class DocumentView extends Component {
-  state = { modalVisible: false }
+  state = {
+    modalVisible: false,
+    isLoading: false,
+  }
 
   componentWillMount() {
-    this.props.loadDocument(this.props.documentId);
+    this.loadDocument(this.props.documentId);
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.documentId !== this.props.documentId) {
-      this.props.loadDocument(nextProps.documentId);
+      this.loadDocument(nextProps.documentId);
       this.props.unloadDocument(this.props.documentId);
     }
   }
@@ -24,7 +34,8 @@ class DocumentView extends Component {
     this.props.unloadDocument(this.props.documentId);
   }
 
-  onEdit() {
+  showEditModal() {
+    console.log(':)');
     this.setState({ modalVisible: true });
   }
 
@@ -33,11 +44,26 @@ class DocumentView extends Component {
     if (forceRefresh) this.props.refreshRoute();
   }
 
+  loadDocument = (documentId) => {
+    const loadDocumentPromise = (this.loadDocumentPromise || Promise.resolve())
+      .then(() => { this.setState({ isLoading: true }); })
+      .then(() => this.props.loadDocument(documentId))
+      .then(() => {
+        if (this.loadDocumentPromise === loadDocumentPromise) {
+          this.setState({ isLoading: false });
+        }
+      });
+    this.loadDocumentPromise = loadDocumentPromise;
+  }
+
+  loadDocumentPromise = null
+
   render() {
     const { documentId } = this.props;
-    const { modalVisible } = this.state;
+    const { modalVisible, isLoading } = this.state;
     return (
       <Page documentId={documentId}>
+        {isLoading && <ActivityIndicator style={styles.indicator} />}
         <Modal
           animationType="slide"
           visible={modalVisible}
@@ -52,5 +78,7 @@ class DocumentView extends Component {
 
 export default connect(
   null,
-  { loadDocument, unloadDocument }
+  { loadDocument, unloadDocument },
+  null,
+  { withRef: true }
 )(DocumentView);

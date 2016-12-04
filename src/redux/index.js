@@ -313,5 +313,5 @@ export const deleteSection = (sectionId: SectionId) =>
   ({ type: DELETE_SECTION, sectionId });
 export const setCustomUnits = (customUnits: Object) =>
   ({ type: SET_CUSTOM_UNITS, customUnits });
-export { loadDocuments, loadDocument } from './persistenceMiddleware';
+// export { loadDocuments, loadDocument } from './persistenceMiddleware';
 /* eslint-enable */

@@ -1,3 +1,4 @@
 * Fix the title not updating
 * Animate SortableTable editing
-* Set current date
+
+TURN OFF DEAD CODE STRIPPING IN RELEASE BUILD (Build Settings)
