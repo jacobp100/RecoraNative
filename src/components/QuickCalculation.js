@@ -106,6 +106,9 @@ class QuickCalculation extends Component {
     };
   }
 
+  state: Object
+  instance: Object // eslint-disable-line
+
   componentDidUpdate(prevProps, prevState) {
     const unitsDidChange = prevProps.customUnits !== this.props.customUnits;
     const inputDidChange = prevState.textInput !== this.state.textInput;

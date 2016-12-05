@@ -44,7 +44,7 @@ class Recora extends Component {
     if (!this.navigator) return;
     const currentRoute = this.navigator.navigationContext.currentRoute;
     currentRoute.title = get(documentId, this.props.documentTitles);
-    this.navigator.resetTo(currentRoute);
+    this.navigator.replaceAtIndex(currentRoute, 1);
   }
 
   navigator = null;

@@ -32,7 +32,13 @@ const styles = StyleSheet.create({
     height: 28,
     textAlign: 'left',
   },
+  fudgeHeight: {
+    height: 30,
+  },
 });
+
+const textInputContainerStyles =
+  [styles.flex, buttonStyles.border, buttonStyles.textInputBorder, styles.fudgeHeight];
 
 class DocumentList extends Component {
   state = {
@@ -101,14 +107,14 @@ class DocumentList extends Component {
 
     const toolbar = searchingTableItems ? (
       <View style={styles.actionRow}>
-        <View
-          style={[styles.flex, buttonStyles.border, buttonStyles.textInputBorder]}
-        >
+        <View style={textInputContainerStyles}>
           <TextInput
             style={[styles.flex, buttonStyles.buttonText, styles.textInput]}
             value={searchQuery}
             onChangeText={this.setSearchQuery}
             placeholder="Search"
+            blurOnSubmit
+            autoFocus
           />
         </View>
         <TouchableOpacity onPress={this.toggleSearching}>
