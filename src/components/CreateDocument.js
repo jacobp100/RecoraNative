@@ -37,7 +37,7 @@ class CreateDocument extends Component {
     const { filename, accountId } = this.state;
     if (filename && accountId) {
       this.navigateAccountOnNewDocument = true;
-      this.props.addDocument(filename, accountId);
+      this.props.addDocument(accountId, filename);
     }
   }
 

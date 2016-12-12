@@ -77,8 +77,8 @@ const modalUris = {
 };
 const authenticationParameters = {
   [MODAL_DROPBOX]: params => ({
-    type: STORAGE_DROPBOX,
     id: params.account_id,
+    type: STORAGE_DROPBOX,
     token: params.access_token,
     name: 'Dropbox',
   }),
@@ -94,7 +94,7 @@ class AccountsList extends Component {
     NativeModules.OAuth.authenticate(modalUris[modal])
       .then((url) => {
         const params = authenticationParameters[modal](getUriParams(url));
-        this.props.addAccount(params.type, params.id, params.token, params.name);
+        this.props.addAccount(params.id, params.type, params.token, params.name);
       })
       .catch(() => {});
   };

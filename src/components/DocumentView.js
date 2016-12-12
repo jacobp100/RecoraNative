@@ -2,6 +2,7 @@
 import React, { Component } from 'react';
 import { Modal, ActivityIndicator, StyleSheet } from 'react-native';
 import { connect } from 'react-redux';
+import { includes } from 'lodash/fp';
 import { unloadDocument } from '../redux';
 import { loadDocument } from '../redux/persistenceMiddleware';
 import EditModal from './EditModal';
@@ -20,12 +21,12 @@ class DocumentView extends Component {
   }
 
   componentWillMount() {
-    this.loadDocument(this.props.documentId);
+    this.loadDocument(this.props.documentId, this.props.loadedDocuments);
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.documentId !== this.props.documentId) {
-      this.loadDocument(nextProps.documentId);
+      this.loadDocument(nextProps.documentId, nextProps.loadedDocuments);
       this.props.unloadDocument(this.props.documentId);
     }
   }
@@ -35,7 +36,6 @@ class DocumentView extends Component {
   }
 
   showEditModal() {
-    console.log(':)');
     this.setState({ modalVisible: true });
   }
 
@@ -44,7 +44,9 @@ class DocumentView extends Component {
     if (forceRefresh) this.props.refreshRoute();
   }
 
-  loadDocument = (documentId) => {
+  loadDocument = (documentId, loadedDocuments) => {
+    if (includes(documentId, loadedDocuments)) return;
+
     const loadDocumentPromise = (this.loadDocumentPromise || Promise.resolve())
       .then(() => { this.setState({ isLoading: true }); })
       .then(() => this.props.loadDocument(documentId))
@@ -77,7 +79,7 @@ class DocumentView extends Component {
 }
 
 export default connect(
-  null,
+  ({ loadedDocuments }) => ({ loadedDocuments }),
   { loadDocument, unloadDocument },
   null,
   { withRef: true }

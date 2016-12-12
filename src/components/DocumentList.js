@@ -9,7 +9,7 @@ import { includes, filter } from 'lodash/fp';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
 import CreateDocument from './CreateDocument';
-import { addDocument, deleteDocument, setDocumentTitle } from '../redux';
+import { deleteDocument, setDocumentTitle } from '../redux';
 import { loadDocuments } from '../redux/persistenceMiddleware';
 import { button as buttonStyles } from '../styles';
 
@@ -198,5 +198,5 @@ export default connect(
     documentTitles,
     accounts,
   }),
-  { addDocument, deleteDocument, setDocumentTitle, loadDocuments }
+  { deleteDocument, setDocumentTitle, loadDocuments }
 )(DocumentList);

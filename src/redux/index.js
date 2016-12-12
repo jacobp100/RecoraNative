@@ -1,7 +1,7 @@
 // @flow
 import {
   __, get, set, unset, concat, update, mapValues, without, reduce, assign, flow, includes, map,
-  omitBy, curry, isNull, union, invert, sortBy, filter,
+  omitBy, curry, isNull, union, invert, sortBy, filter, pickBy, values,
 } from 'lodash/fp';
 import { append, reorder, getOrThrow, objFrom } from '../util';
 import { STORAGE_LOCAL } from '../types';
@@ -11,7 +11,7 @@ import type { // eslint-disable-line
 } from '../types';
 
 
-const defaultState: State = {
+export const defaultState: State = {
   documents: [],
   documentStorageLocations: {},
   documentTitles: {},
@@ -55,7 +55,7 @@ const ADD_ACCOUNT = 'recora:ADD_ACCOUNT';
 const DELETE_ACCOUNT = 'recora:DELETE_ACCOUNT';
 const REORDER_ACCOUNTS = 'recora:REORDER_ACCOUNTS';
 const SET_ACCOUNTS = 'recora:SET_ACCOUNTS';
-const SET_DOCUMENT_STORAGE_LOCATIONS = 'recora:SET_DOCUMENT_STORAGE_LOCATIONS';
+const SET_DOCUMENT_STORAGE_LOCATIONS_FOR_ACCOUNT = 'recora:SET_DOCUMENT_STORAGE_LOCATIONS_FOR_ACCOUNT';
 const SET_DOCUMENT_CONTENT = 'recora:SET_DOCUMENT_CONTENT';
 const UNLOAD_DOCUMENT = 'recora:UNLOAD_DOCUMENT';
 const UPDATE_DOCUMENT_STORAGE_LOCATIONS = 'recora:UPDATE_DOCUMENT_STORAGE_LOCATIONS';
@@ -102,23 +102,27 @@ const doDeleteUnloadSection = curry((sectionId, state) => flow(
   update('documentSections', mapValues(without([sectionId])))
 )(state));
 
-const documentKeys = [
-  'documentTitles',
-  'documentSections',
-];
 const doUnloadDocument = curry((documentId, state) => flow(
   state => reduce(
     (state, sectionId) => doDeleteUnloadSection(sectionId, state),
     state,
     get(['documentSections', documentId], state)
   ),
+  unset(['documentSections', documentId]),
   update('loadedDocuments', without([documentId]))
 )(state));
 const doDeleteDocument = curry((documentId, state) => flow(
   doUnloadDocument(documentId),
-  removeIdWithinKeys(documentKeys, documentId),
+  unset(['documentTitles', documentId]),
   update('documents', without([documentId])),
 )(state));
+const doRemoveDeletedDocument = curry((documentId, state) => flow(
+  doDeleteDocument(documentId),
+  unset(['documentStorageLocations', documentId])
+)(state));
+const doRemoveDeletedDocuments = curry((documentIds, state) => (
+  reduce((state, documentId) => doRemoveDeletedDocument(documentId, state), state, documentIds)
+));
 
 const doAddSection = curry((documentId, state) => {
   const sectionId = createSectionId();
@@ -134,17 +138,17 @@ const doAddSection = curry((documentId, state) => {
 });
 
 const doAddDocument = curry((title, accountId, state) => {
-  const id = createDocumentId();
+  const documentId = createDocumentId();
   return flow(
-    update('loadedDocuments', append(id)),
-    update('documents', concat(id)),
-    set(['documentTitles', id], title),
-    set(['documentStorageLocations', id], {
+    update('loadedDocuments', union([documentId])),
+    update('documents', concat(documentId)),
+    set(['documentTitles', documentId], title),
+    set(['documentStorageLocations', documentId], {
       accountId,
       title,
       lastModified: Date.now(),
     }),
-    doAddSection(id)
+    doAddSection(documentId)
   )(state);
 });
 
@@ -179,9 +183,7 @@ export default (state: State = defaultState, action: Object): State => {
         get(['documentStorageLocations', documentId, 'accountId'], state) === accountId
       ), state.documents);
       return flow(
-        state => reduce((state, documentId) => (
-          doDeleteDocument(documentId, state)
-        ), state, documentsToRemove),
+        doRemoveDeletedDocuments(documentsToRemove),
         update('accounts', without([accountId])),
         unset(['accountTypes', accountId]),
         unset(['accountNames', accountId]),
@@ -200,20 +202,27 @@ export default (state: State = defaultState, action: Object): State => {
         update('accountNames', assign(__, mapValues('name', accounts)))
       )(state);
     }
-    case SET_DOCUMENT_STORAGE_LOCATIONS: {
-      const storageLocationIdToDocumentId = flow(
+    case SET_DOCUMENT_STORAGE_LOCATIONS_FOR_ACCOUNT: {
+      const previousStorageLocationIdToDocumentId = flow(
+        pickBy({ accountId: action.accountId }),
         mapValues('id'),
         invert
       )(state.documentStorageLocations);
       const documentIds = map(storageLocation => (
-        storageLocationIdToDocumentId[storageLocation.id] || createDocumentId()
+        previousStorageLocationIdToDocumentId[storageLocation.id] || createDocumentId()
       ), action.documents);
       const documentStorageLocations = objFrom(documentIds, action.documents);
+
+      const documentsToRemove = without(documentIds, values(previousStorageLocationIdToDocumentId));
+
       return flow(
         update('documents', union(documentIds)),
-        doUpdateDocumentStorageLocations(documentStorageLocations)
+        doUpdateDocumentStorageLocations(documentStorageLocations),
+        doRemoveDeletedDocuments(documentsToRemove),
       )(state);
     }
+    case UPDATE_DOCUMENT_STORAGE_LOCATIONS:
+      return doUpdateDocumentStorageLocations(action.documentStorageLocations, state);
     case SET_DOCUMENT_CONTENT: {
       const { documentId, document } = action;
 
@@ -225,7 +234,7 @@ export default (state: State = defaultState, action: Object): State => {
       const sectionTextInputs = objFrom(sectionIds, map('textInputs', sections));
 
       return flow(
-        update('loadedDocuments', append(documentId)),
+        update('loadedDocuments', union([documentId])),
         set(['documentTitles', documentId], title),
         set(['documentSections', documentId], sectionIds),
         update('sectionTitles', assign(__, sectionTitles)),
@@ -234,8 +243,6 @@ export default (state: State = defaultState, action: Object): State => {
     }
     case UNLOAD_DOCUMENT:
       return doUnloadDocument(action.documentId, state);
-    case UPDATE_DOCUMENT_STORAGE_LOCATIONS:
-      return doUpdateDocumentStorageLocations(action.documentStorageLocations, state);
     case ADD_DOCUMENT:
       return doAddDocument(action.filename, action.accountId, state);
     case SET_DOCUMENT_TITLE:
@@ -268,8 +275,8 @@ export default (state: State = defaultState, action: Object): State => {
 
 /* eslint-disable max-len */
 export const addAccount = (
-  accountType: StorageType,
   accountId: StorageAccountId,
+  accountType: StorageType,
   accountToken: ?string,
   accountName: string
 ) =>
@@ -280,17 +287,17 @@ export const reorderAccounts = (order: number[]) =>
   ({ type: REORDER_ACCOUNTS, order });
 export const setAccounts = (accounts: StorageAccount) =>
   ({ type: SET_ACCOUNTS, accounts });
-export const setDocumentStorageLocations = (documents: StorageLocation[]) =>
-  ({ type: SET_DOCUMENT_STORAGE_LOCATIONS, documents });
+export const setDocumentStorageLocationsForAccount = (accountId, documents: StorageLocation[]) =>
+  ({ type: SET_DOCUMENT_STORAGE_LOCATIONS_FOR_ACCOUNT, accountId, documents });
+export const updateDocumentStorageLocations = (documentStorageLocations: Object) =>
+  ({ type: UPDATE_DOCUMENT_STORAGE_LOCATIONS, documentStorageLocations });
 export const setDocumentContent = (documentId: DocumentId, document: Document) =>
   ({ type: SET_DOCUMENT_CONTENT, documentId, document });
 export const unloadDocument = (documentId: DocumentId) =>
   ({ type: UNLOAD_DOCUMENT, documentId });
-export const updateDocumentStorageLocations = (documentStorageLocations: Object) =>
-  ({ type: UPDATE_DOCUMENT_STORAGE_LOCATIONS, documentStorageLocations });
 export const addDocument = (
+  accountId: StorageAccountId = 'localStorage1',
   filename: string = 'New Document',
-  accountId: StorageAccountId = 'localStorage1'
 ) =>
   ({ type: ADD_DOCUMENT, filename, accountId });
 export const setDocumentTitle = (documentId: DocumentId, title: string) =>

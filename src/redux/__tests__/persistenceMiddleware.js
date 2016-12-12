@@ -70,7 +70,7 @@ const getMocks = ({
 it('saves a document immediately after creation', async () => {
   const { store, storageInterface } = getMocks();
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
-  store.dispatch(addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID));
+  store.dispatch(addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename'));
   await Promise.resolve();
   expect(storageInterface.updateStore.mock.calls.length).toBe(1);
 });
@@ -78,7 +78,7 @@ it('saves a document immediately after creation', async () => {
 it('deletes a document immediately deletion creation', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
@@ -93,7 +93,7 @@ it('deletes a document immediately deletion creation', async () => {
 it('saves a document after a change after waiting', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
@@ -139,7 +139,7 @@ it('loads documents and does not emit other storage events', async () => {
 it('does not save a document with no changes after unloading', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
@@ -155,7 +155,7 @@ it('does not save a document with no changes after unloading', async () => {
 it('saves a document after changing then unloading', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
@@ -177,7 +177,7 @@ it('saves a document after changing then unloading', async () => {
 it('emits only a removal storage operation when changing then deleting', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);
@@ -203,7 +203,7 @@ it('emits only a removal storage operation when changing then deleting', async (
 it('emits no storage operations when removing accounts', async () => {
   const initialState = reducer(
     mockState,
-    addDocument('Mock Filename', MOCK_STORAGE_ACCOUNT_ID)
+    addDocument(MOCK_STORAGE_ACCOUNT_ID, 'Mock Filename')
   );
   const { store, storageInterface } = getMocks({ state: initialState });
   expect(storageInterface.updateStore.mock.calls.length).toBe(0);

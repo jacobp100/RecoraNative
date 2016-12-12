@@ -63,10 +63,10 @@ export default class SortableTable extends Component {
   }
 
   baseRowTopFor = (id, props = this.props) => this.rowTopForIndex(this.indexForRow(id, props))
-  indexForRow = (id, props = this.props) => props.rows.indexOf(id);
-  rowTopForIndex = index => index * rowHeight;
+  indexForRow = (id, props = this.props) => props.rows.indexOf(id)
+  rowTopForIndex = index => index * rowHeight
 
-  defaultDraggingOrder = (props = this.props) => range(0, props.rows.length);
+  defaultDraggingOrder = (props = this.props) => range(0, props.rows.length)
 
   initialStateForProps = props => ({
     draggingId: null,
@@ -87,6 +87,8 @@ export default class SortableTable extends Component {
   responderMove = (e, gestureState) => {
     const { dy } = gestureState;
     const { draggingId, rowTops, height } = this.state;
+    if (!draggingId) return;
+
     const baseRowTop = this.baseRowTopFor(draggingId);
     const nextTop = clamp(0, height - rowHeight - 1, baseRowTop + dy);
     rowTops[draggingId].setValue(nextTop);

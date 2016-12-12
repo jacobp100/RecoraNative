@@ -7,8 +7,8 @@ import { debounce } from 'lodash';
 import { STORAGE_ACTION_SAVE, STORAGE_ACTION_REMOVE } from '../../types';
 import { getOrThrow, objFrom } from '../../util';
 import {
-  updateDocumentStorageLocations, setDocumentStorageLocations, setDocumentContent, getDocument,
-  setAccounts, getAccounts, getAccount,
+  setDocumentStorageLocationsForAccount, updateDocumentStorageLocations, setDocumentContent,
+  getDocument, setAccounts, getAccounts, getAccount,
 } from '../index';
 import { getPromiseStorage } from './promiseStorage';
 import asyncStorageImplementation from './asyncStorageImplementation';
@@ -276,7 +276,7 @@ export default (
 
     await Promise.all(map(account => queueImplementationStorageOperation(account.type, storage => (
       storage.loadDocuments(account)
-        .then(documents => dispatch(setDocumentStorageLocations(documents)))
+        .then(documents => dispatch(setDocumentStorageLocationsForAccount(account.id, documents)))
     )), accounts));
   };
 
