@@ -16,18 +16,18 @@ const styles = StyleSheet.create({
 });
 
 const Section = ({
-  portrait,
+  useFullTextView,
   showSectionTitle,
   sectionId,
   sectionTitle,
 }) => {
   const titleElement = showSectionTitle && (
-    <View style={{ backgroundColor: portrait ? '#f8f8f8' : 'white' }}>
+    <View style={{ backgroundColor: useFullTextView ? 'white' : '#f8f8f8' }}>
       <Text style={styles.title}>{sectionTitle}</Text>
     </View>
   );
 
-  const EntryComponent = portrait ? EntryStackView : EntryTextView;
+  const EntryComponent = useFullTextView ? EntryTextView : EntryStackView;
 
   return (
     <View>

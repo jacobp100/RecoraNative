@@ -18,6 +18,7 @@ class Page extends Component {
   render() {
     const { sections, children } = this.props;
     const { isPortrait } = this.state;
+    const useFullTextView = !isPortrait;
     const showSectionTitle = sections.length > 1;
 
     return (
@@ -27,7 +28,7 @@ class Page extends Component {
             <Section
               key={sectionId}
               sectionId={sectionId}
-              portrait={isPortrait}
+              useFullTextView={useFullTextView}
               showSectionTitle={showSectionTitle}
             />
           ), sections)}
