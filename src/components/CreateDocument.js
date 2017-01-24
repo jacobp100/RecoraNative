@@ -1,17 +1,11 @@
 // @flow
 import React, { Component } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Picker, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Picker, Alert } from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { map, without } from 'lodash/fp';
 import { addDocument } from '../redux';
 import { button as buttonStyles } from '../styles';
-
-const styles = StyleSheet.create({
-  disabled: {
-    opacity: 0.15,
-  },
-});
 
 class CreateDocument extends Component {
   constructor({ accounts }) {
@@ -44,6 +38,8 @@ class CreateDocument extends Component {
     if (filename && accountId) {
       this.navigateAccountOnNewDocument = true;
       this.props.addDocument(accountId, filename);
+    } else {
+      Alert.alert('You must set a document title to create a document');
     }
   }
 
@@ -53,12 +49,6 @@ class CreateDocument extends Component {
   render() {
     const { accounts, accountNames, onClose } = this.props;
     const { filename, accountId } = this.state;
-
-    const createDocumentButtonBody = (
-      <View style={[buttonStyles.button, buttonStyles.border, buttonStyles.buttonBorder]}>
-        <Text style={buttonStyles.buttonText}>CREATE DOCUMENT</Text>
-      </View>
-    );
 
     return (
       <KeyboardAwareScrollView style={{ padding: 36, paddingTop: 60 }}>
@@ -79,11 +69,11 @@ class CreateDocument extends Component {
             />
           ), accounts)}
         </Picker>
-        {(filename && accountId) ? (
-          <TouchableOpacity onPress={this.addAccount}>{createDocumentButtonBody}</TouchableOpacity>
-        ) : (
-          <View style={styles.disabled}>{createDocumentButtonBody}</View>
-        )}
+        <TouchableOpacity onPress={this.addAccount}>
+          <View style={[buttonStyles.button, buttonStyles.border, buttonStyles.buttonBorder]}>
+            <Text style={buttonStyles.buttonText}>CREATE DOCUMENT</Text>
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity onPress={onClose}>
           <View style={buttonStyles.button}>
             <Text style={buttonStyles.buttonText}>CANCEL</Text>
