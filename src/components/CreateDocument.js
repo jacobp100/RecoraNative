@@ -23,6 +23,12 @@ class CreateDocument extends Component {
     };
   }
 
+  componentDidMount() {
+    setTimeout(() => {
+      if (this.textInput) this.textInput.focus();
+    }, 50);
+  }
+
   componentDidUpdate(prevProps) {
     if (!this.navigateAccountOnNewDocument) return;
     const newDocuments = without(prevProps.documents, this.props.documents);
@@ -42,6 +48,7 @@ class CreateDocument extends Component {
   }
 
   navigateAccountOnNewDocument = false
+  textInput = null
 
   render() {
     const { accounts, accountNames, onClose } = this.props;
@@ -56,10 +63,12 @@ class CreateDocument extends Component {
     return (
       <KeyboardAwareScrollView style={{ padding: 36, paddingTop: 60 }}>
         <TextInput
+          ref={(textInput) => { this.textInput = textInput; }}
           style={{ fontSize: 36, height: 80 }}
-          placeholder="Title"
+          placeholder="Enter a Title"
           value={filename}
           onChangeText={this.setFilename}
+          returnKeyType="done"
         />
         <Picker selectedValue={accountId} onValueChange={this.setAccountId}>
           {map(accountId => (

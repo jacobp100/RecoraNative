@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { includes, filter } from 'lodash/fp';
+import { includes, filter, isEmpty } from 'lodash/fp';
 import QuickCalculation from './QuickCalculation';
 import SortableTable from './SortableTable';
 import CreateDocument from './CreateDocument';
@@ -35,10 +35,23 @@ const styles = StyleSheet.create({
   fudgeHeight: {
     height: 30,
   },
+  help: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#ccc',
+  },
 });
 
 const textInputContainerStyles =
   [styles.flex, buttonStyles.border, buttonStyles.textInputBorder, styles.fudgeHeight];
+
+const DocumentListHelp = ({ children }) => (
+  <View>
+    <Text style={styles.help}>{children}</Text>
+  </View>
+);
 
 class DocumentList extends Component {
   state = {
@@ -164,13 +177,9 @@ class DocumentList extends Component {
       />
     );
 
-    return (
-      <KeyboardAwareScrollView
-        scrollEnabled={!draggingTableItems}
-        refreshControl={refreshControl}
-      >
-        <QuickCalculation />
-        {toolbar}
+    let table;
+    if (!isEmpty(rows)) {
+      table = (
         <SortableTable
           rows={rows}
           rowTitles={documentTitles}
@@ -181,6 +190,30 @@ class DocumentList extends Component {
           onDeletePress={deleteDocument}
           onRowChangeText={setDocumentTitle}
         />
+      );
+    } else if (searchQuery) {
+      table = (
+        <DocumentListHelp>
+          No Documents matched your search query.
+        </DocumentListHelp>
+      );
+    } else {
+      table = (
+        <DocumentListHelp>
+          No Documents.{'\n'}
+          Click &rsquo;Add Document&lsquo; to get started.
+        </DocumentListHelp>
+      );
+    }
+
+    return (
+      <KeyboardAwareScrollView
+        scrollEnabled={!draggingTableItems}
+        refreshControl={refreshControl}
+      >
+        <QuickCalculation />
+        {toolbar}
+        {table}
         <Modal visible={creatingDocument} animationType="slide">
           <CreateDocument
             onClose={this.toggleCreatingDocument}
